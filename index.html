@@ -46,8 +46,8 @@
         }
 
         .logo-container {
-            max-width: 160px; /* Légèrement agrandi */
-            max-height: 80px; /* Légèrement agrandi */
+            max-width: 160px;
+            max-height: 80px;
             object-fit: contain;
             margin-bottom: 1.5rem;
         }
@@ -109,7 +109,7 @@
         <div class="flex-1 relative">
             <div id="map"></div>
             
-            <!-- DETAIL PANEL (Élargi à 480px sur desktop) -->
+            <!-- DETAIL PANEL -->
             <div id="detailPanel" class="absolute top-6 right-6 w-[calc(100%-3rem)] md:w-[480px] bg-white rounded-2xl shadow-2xl p-8 border-t-8 border-[var(--dix-dark-green)] transform translate-x-[120%] z-[1000] overflow-hidden">
                 <button onclick="closeDetails()" class="absolute top-6 right-6 text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors">
                     <i data-lucide="x" class="w-6 h-6"></i>
@@ -269,14 +269,26 @@
             data.forEach(item => {
                 const card = document.createElement('div');
                 card.id = `card-${item.id}`;
-                card.className = "p-4 bg-white rounded-xl cursor-pointer transition-all shadow-sm hover:shadow-md border border-gray-100 group";
+                card.className = "bg-white rounded-xl cursor-pointer transition-all shadow-sm hover:shadow-md border border-gray-100 group overflow-hidden";
+                
+                // On crée une structure flex pour mettre le logo à gauche (1/3)
                 card.innerHTML = `
-                    <div class="flex justify-between items-start mb-1">
-                        <span class="text-[9px] font-bold px-1.5 py-0.5 bg-gray-100 rounded group-hover:bg-[var(--dix-light-green)] group-hover:text-white transition-colors">${item.year}</span>
-                        <span class="text-[9px] uppercase tracking-tighter text-[var(--dix-light-green)] font-bold">${item.theme || ''}</span>
+                    <div class="flex items-stretch h-full min-h-[100px]">
+                        <div class="w-1/3 bg-gray-50 flex items-center justify-center p-2 border-r border-gray-50">
+                            ${item.logo 
+                                ? `<img src="${item.logo}" class="max-h-16 w-full object-contain filter grayscale group-hover:grayscale-0 transition-all" alt="Logo">`
+                                : `<div class="text-[var(--dix-dark-green)] opacity-20 font-oswald text-2xl">${(item.client || "D").charAt(0)}</div>`
+                            }
+                        </div>
+                        <div class="w-2/3 p-3 flex flex-col justify-center">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-[8px] font-bold px-1.5 py-0.5 bg-gray-100 rounded group-hover:bg-[var(--dix-light-green)] group-hover:text-white transition-colors">${item.year}</span>
+                                <span class="text-[8px] uppercase tracking-tighter text-[var(--dix-light-green)] font-bold">${item.theme || ''}</span>
+                            </div>
+                            <h4 class="text-xs leading-tight text-[var(--dix-dark-green)] font-oswald mb-1">${item.title ? item.title.toUpperCase() : 'SANS TITRE'}</h4>
+                            <p class="text-[9px] font-bold text-gray-400">${item.client || ''}</p>
+                        </div>
                     </div>
-                    <h4 class="text-sm leading-tight text-[var(--dix-dark-green)] font-oswald">${item.title ? item.title.toUpperCase() : 'SANS TITRE'}</h4>
-                    <p class="text-[10px] font-bold text-gray-400 mt-1">${item.client || ''}</p>
                 `;
                 card.onclick = () => selectRef(item);
                 listContainer.appendChild(card);
