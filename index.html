@@ -38,10 +38,24 @@
         .active-card { border-left: 4px solid var(--dix-light-green) !important; background-color: white !important; transform: translateX(5px); }
         
         .marker-dot { transition: all 0.2s ease; }
-        #detailPanel { transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        /* Animation du panneau de détails : Glissement depuis la droite */
+        #detailPanel { 
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+            box-shadow: -10px 0 30px rgba(0,0,0,0.1);
+        }
 
         @media (max-width: 768px) {
-            #detailPanel { bottom: 0; left: 0; right: 0; border-radius: 20px 20px 0 0; max-height: 75vh; }
+            #detailPanel { 
+                top: auto !important;
+                bottom: 0 !important; 
+                left: 0 !important; 
+                right: 0 !important; 
+                width: 100% !important;
+                border-radius: 20px 20px 0 0; 
+                max-height: 75vh; 
+                transform: translateY(150%); /* Sur mobile on garde le glissement vertical */
+            }
         }
     </style>
 </head>
@@ -84,12 +98,12 @@
             <div id="resultsList" class="space-y-3 hidden"></div>
         </div>
 
-        <!-- MAP -->
+        <!-- MAP CONTAINER -->
         <div class="flex-1 relative">
             <div id="map"></div>
             
-            <!-- DETAIL PANEL -->
-            <div id="detailPanel" class="absolute bottom-6 left-6 right-6 md:left-12 md:right-12 bg-white rounded-2xl shadow-2xl p-6 border-t-8 border-[var(--dix-dark-green)] transform translate-y-[150%] z-[1000] max-w-2xl mx-auto overflow-hidden">
+            <!-- DETAIL PANEL (Maintenant en haut à droite) -->
+            <div id="detailPanel" class="absolute top-6 right-6 w-[calc(100%-3rem)] md:w-96 bg-white rounded-2xl shadow-2xl p-6 border-t-8 border-[var(--dix-dark-green)] transform translate-x-[120%] z-[1000] overflow-hidden">
                 <button onclick="closeDetails()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors">
                     <i data-lucide="x" class="w-6 h-6"></i>
                 </button>
@@ -98,10 +112,10 @@
                         <span id="detYear" class="bg-[var(--dix-white-grey)] text-[10px] font-bold px-2 py-1 rounded text-[var(--dix-dark-green)]"></span>
                         <span id="detTheme" class="text-[10px] uppercase tracking-widest font-bold text-[var(--dix-light-green)]"></span>
                     </div>
-                    <h2 id="detTitle" class="text-xl md:text-2xl text-[var(--dix-dark-green)] leading-tight font-oswald"></h2>
+                    <h2 id="detTitle" class="text-xl text-[var(--dix-dark-green)] leading-tight font-oswald"></h2>
                     <p id="detClient" class="text-sm font-bold text-gray-500"></p>
                     <div class="h-px bg-gray-100 w-full my-3"></div>
-                    <div id="detDesc" class="text-gray-600 text-sm italic leading-relaxed whitespace-pre-line max-h-48 overflow-y-auto custom-scroll pr-2"></div>
+                    <div id="detDesc" class="text-gray-600 text-sm italic leading-relaxed whitespace-pre-line max-h-60 overflow-y-auto custom-scroll pr-2"></div>
                     <div class="flex items-center gap-2 mt-4 text-[10px] text-gray-400 uppercase tracking-widest font-oswald border-t pt-4">
                         <i data-lucide="map-pin" class="w-3 h-3 text-[var(--dix-light-green)]"></i>
                         <span id="detLoc"></span>
@@ -119,7 +133,6 @@
         // CONFIGURATION
         const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSm_4bPCRFK_gGVkxP-ZeTHzLauhQtqNg_zG2chKNuY8-iyDAuHjc_CQbpBCU4LY9-GRi1579CsUkhr/pub?gid=917397259&single=true&output=csv";
         
-        // Mapping par défaut (sera mis à jour dynamiquement au chargement)
         let COLS = {
             ANNEE: 0, REGION: 1, CLIENT: 3, TYPE: 4, TITRE: 5, DESC: 6, VILLE: 8, LAT: 9, LNG: 10
         };
@@ -128,11 +141,9 @@
         let map, markersLayer;
 
         function updateLoaderStatus(status, hint = "") {
-            console.log("Status update:", status, hint);
             const statusEl = document.getElementById('loaderStatus');
             const hintEl = document.getElementById('loaderHint');
             const iconEl = document.getElementById('loaderIcon');
-            
             if (statusEl) statusEl.textContent = status;
             if (hintEl) hintEl.textContent = hint;
             if (status.includes("Erreur") && iconEl) iconEl.classList.remove('animate-spin');
@@ -141,19 +152,10 @@
         window.onload = function() {
             try {
                 updateLoaderStatus("Chargement...", "Initialisation de la carte");
-                
-                // Initialisation des icônes
-                if (window.lucide) {
-                    lucide.createIcons();
-                }
-
-                // Initialisation de la carte
+                if (window.lucide) lucide.createIcons();
                 initMap();
-                
-                // Chargement des données
                 loadData();
             } catch (err) {
-                console.error("Crash initial:", err);
                 updateLoaderStatus("Erreur Système", "Le script n'a pas pu démarrer.");
             }
         };
@@ -170,7 +172,6 @@
 
         function loadData() {
             updateLoaderStatus("Lecture...", "Récupération des références");
-            
             Papa.parse(CSV_URL, {
                 download: true,
                 header: false,
@@ -180,34 +181,20 @@
                         updateLoaderStatus("Erreur : Fichier vide", "Vérifiez la publication de votre onglet.");
                         return;
                     }
-
-                    // Détection dynamique des colonnes (si l'entête contient les noms attendus)
                     const header = results.data[0];
                     const rows = results.data.slice(1);
-                    
-                    const findCol = (names) => {
-                        return header.findIndex(h => names.some(n => h.toLowerCase().includes(n.toLowerCase())));
-                    };
-
-                    // Si on trouve les noms de colonnes, on met à jour le mapping
+                    const findCol = (names) => header.findIndex(h => names.some(n => h.toLowerCase().includes(n.toLowerCase())));
                     const idxLat = findCol(['lat', 'latitude']);
                     const idxLng = findCol(['long', 'lng', 'longitude']);
-                    
                     if (idxLat !== -1) COLS.LAT = idxLat;
                     if (idxLng !== -1) COLS.LNG = idxLng;
 
-                    updateLoaderStatus("Analyse...", rows.length + " lignes trouvées");
-                    
                     allData = rows.map((row, index) => {
                         try {
-                            // Nettoyage agressif des coordonnées (supprime espaces, change virgules en points)
                             const cleanCoord = (val) => String(val || "").replace(/\s/g, '').replace(',', '.').trim();
-                            
                             const lat = parseFloat(cleanCoord(row[COLS.LAT]));
                             const lng = parseFloat(cleanCoord(row[COLS.LNG]));
-                            
                             if (isNaN(lat) || isNaN(lng)) return null;
-
                             return {
                                 id: index,
                                 year: row[COLS.ANNEE] || "N/C",
@@ -227,10 +214,8 @@
                         updateLoaderStatus("Erreur : GPS manquant", "Aucune coordonnée Latitude/Longitude lisible.");
                         return;
                     }
-
                     renderFilters();
                     render(allData);
-                    
                     document.getElementById('loader').classList.add('hidden');
                     document.getElementById('resultsList').classList.remove('hidden');
                 },
@@ -254,7 +239,6 @@
             const listContainer = document.getElementById('resultsList');
             listContainer.innerHTML = '';
             markersLayer.clearLayers();
-
             data.forEach(item => {
                 const card = document.createElement('div');
                 card.id = `card-${item.id}`;
@@ -275,7 +259,6 @@
                     html: `<div class="marker-dot" style="background-color: var(--dix-light-green); width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.2);"></div>`,
                     iconSize: [14, 14], iconAnchor: [7, 7]
                 });
-
                 L.marker([item.lat, item.lng], { icon: markerIcon }).addTo(markersLayer).on('click', () => selectRef(item));
             });
         }
@@ -294,11 +277,22 @@
             document.getElementById('detTheme').textContent = item.theme;
             document.getElementById('detDesc').textContent = item.desc;
             document.getElementById('detLoc').textContent = `${item.city || ''} (${item.region || ''})`;
-            document.getElementById('detailPanel').style.transform = "translateY(0)";
+            
+            const panel = document.getElementById('detailPanel');
+            if (window.innerWidth <= 768) {
+                panel.style.transform = "translateY(0)";
+            } else {
+                panel.style.transform = "translateX(0)";
+            }
         }
 
         function closeDetails() {
-            document.getElementById('detailPanel').style.transform = "translateY(150%)";
+            const panel = document.getElementById('detailPanel');
+            if (window.innerWidth <= 768) {
+                panel.style.transform = "translateY(150%)";
+            } else {
+                panel.style.transform = "translateX(120%)";
+            }
             document.querySelectorAll('#resultsList > div').forEach(el => el.classList.remove('active-card'));
         }
 
