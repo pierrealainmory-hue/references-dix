@@ -31,19 +31,20 @@
         
         #map { height: 100%; width: 100%; background: #f8fafc; z-index: 1; }
         
+        /* Barre de défilement discrète */
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-track { background: transparent; }
         .custom-scroll::-webkit-scrollbar-thumb { background: var(--dix-light-green); border-radius: 10px; }
 
         .active-card { border-left: 4px solid var(--dix-light-green) !important; background-color: white !important; transform: translateX(5px); }
         
-        .marker-dot { transition: all 0.2s ease; }
+        .marker-dot { transition: all 0.2s ease; cursor: pointer; }
         
         /* Panneau de détails : Responsive et Scrollable */
         #detailPanel { 
             transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
             box-shadow: -10px 0 30px rgba(0,0,0,0.1);
-            max-height: calc(100vh - 120px);
+            max-height: calc(100vh - 140px);
             overflow-y: auto;
         }
 
@@ -54,6 +55,9 @@
             margin-bottom: 1rem;
         }
 
+        /* Fixation du header à l'intérieur du conteneur flex */
+        header { flex-shrink: 0; z-index: 50; }
+
         @media (max-width: 768px) {
             #detailPanel { 
                 top: auto !important;
@@ -62,16 +66,16 @@
                 right: 0 !important; 
                 width: 100% !important;
                 border-radius: 20px 20px 0 0; 
-                max-height: 85vh !important; 
+                max-height: 80vh !important; 
                 transform: translateY(150%);
             }
         }
     </style>
 </head>
-<body class="flex flex-col h-screen">
+<body class="flex flex-col h-screen overflow-hidden">
 
-    <!-- HEADER -->
-    <header class="p-3 md:p-5 border-b bg-white relative z-10 shadow-sm">
+    <!-- HEADER / FILTRES (Fixe en haut) -->
+    <header class="p-3 md:p-5 border-b bg-white relative shadow-sm">
         <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
             <div class="flex items-center gap-3">
                 <div class="hidden md:flex w-10 h-10 bg-[var(--dix-dark-green)] rounded-full items-center justify-center text-white font-oswald text-lg">D</div>
@@ -94,21 +98,21 @@
         </div>
     </header>
 
-    <!-- MAIN -->
+    <!-- MAIN (Contenu défilable séparément) -->
     <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
         
-        <!-- SIDEBAR -->
+        <!-- SIDEBAR (Défilement interne) -->
         <div id="sidebar" class="w-full h-1/3 md:h-auto md:w-1/3 lg:w-1/4 bg-[var(--dix-white-grey)]/40 border-r overflow-y-auto custom-scroll p-3 space-y-2.5">
             <div id="loader" class="flex flex-col items-center justify-center py-20 text-gray-400 text-center px-4">
                 <div id="loaderIcon" class="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--dix-light-green)] mb-2"></div>
                 <p id="loaderStatus" class="text-[10px] uppercase tracking-widest font-bold">Démarrage...</p>
-                <p id="loaderHint" class="text-[9px] mt-2 opacity-60">Chargement des références</p>
+                <p id="loaderHint" class="text-[9px] mt-2 opacity-60">Chargement de la base de données</p>
             </div>
             <div id="resultsList" class="space-y-2.5 hidden"></div>
         </div>
 
-        <!-- MAP CONTAINER -->
-        <div class="flex-1 relative">
+        <!-- ZONE CARTE -->
+        <div class="flex-1 relative overflow-hidden">
             <div id="map"></div>
             
             <!-- DETAIL PANEL -->
@@ -139,7 +143,7 @@
         </div>
     </main>
 
-    <footer class="bg-white border-t p-1.5 text-[8px] uppercase tracking-[0.3em] text-center text-gray-400 font-oswald">
+    <footer class="bg-white border-t p-1.5 text-[8px] uppercase tracking-[0.3em] text-center text-gray-400 font-oswald flex-shrink-0">
         D.I.X. Autrement — Modélisation & Évaluation de circuits de proximité
     </footer>
 
@@ -147,7 +151,6 @@
         // CONFIGURATION
         const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSm_4bPCRFK_gGVkxP-ZeTHzLauhQtqNg_zG2chKNuY8-iyDAuHjc_CQbpBCU4LY9-GRi1579CsUkhr/pub?gid=917397259&single=true&output=csv";
         
-        // Mapping flexible : le script cherchera par nom de colonne si possible
         let COLS = {
             ANNEE: 0, REGION: 1, LOGO: 2, CLIENT: 3, TYPE: 4, CATEGORIE: 5, TITRE: 6, DESC: 7, VILLE: 9, LAT: 10, LNG: 11
         };
@@ -208,15 +211,15 @@
                     const rows = results.data.slice(1);
                     
                     const findCol = (names) => header.findIndex(h => names.some(n => h.toLowerCase().includes(n.toLowerCase())));
-                    
-                    // Détection dynamique des colonnes
                     const idxLat = findCol(['lat', 'latitude']);
                     const idxLng = findCol(['long', 'lng', 'longitude']);
                     const idxCat = findCol(['catégorie', 'thématique']);
+                    const idxClient = findCol(['client', 'commanditaire']);
                     
                     if (idxLat !== -1) COLS.LAT = idxLat;
                     if (idxLng !== -1) COLS.LNG = idxLng;
                     if (idxCat !== -1) COLS.CATEGORIE = idxCat;
+                    if (idxClient !== -1) COLS.CLIENT = idxClient;
 
                     allData = rows.map((row, index) => {
                         try {
@@ -269,8 +272,6 @@
             const listContainer = document.getElementById('resultsList');
             listContainer.innerHTML = '';
             markersLayer.clearLayers();
-
-            // Pour stocker les coordonnées et ajuster la vue
             const bounds = [];
 
             data.forEach(item => {
@@ -278,19 +279,18 @@
                 card.id = `card-${item.id}`;
                 card.className = "bg-white rounded-lg cursor-pointer transition-all shadow-sm hover:shadow-md border border-gray-100 group overflow-hidden";
                 
-                // Layout 1/3 logo, 2/3 texte
-                // Client en haut, catégorie en dessous
+                // Organisation : Client en haut, Catégorie en dessous
                 card.innerHTML = `
                     <div class="flex items-stretch h-full min-h-[100px]">
-                        <div class="w-1/3 bg-gray-50 flex items-center justify-center p-2 border-r border-gray-50">
+                        <div class="w-1/3 bg-gray-50 flex items-center justify-center p-2 border-r border-gray-50 flex-shrink-0">
                             ${item.logo 
                                 ? `<img src="${item.logo}" class="max-h-16 w-full object-contain filter grayscale group-hover:grayscale-0 transition-all" alt="Logo">`
                                 : `<div class="text-[var(--dix-dark-green)] opacity-10 font-oswald text-xl">${(item.client || "D").charAt(0)}</div>`
                             }
                         </div>
                         <div class="w-2/3 p-3 flex flex-col justify-center">
-                            <h4 class="text-[10px] font-bold text-[var(--dix-dark-green)] font-oswald mb-1 leading-tight line-clamp-1">${item.client ? item.client.toUpperCase() : 'CLIENT'}</h4>
-                            <div class="flex justify-between items-center mb-1.5">
+                            <h4 class="text-[10px] font-bold text-[var(--dix-dark-green)] font-oswald mb-0.5 leading-tight line-clamp-1">${item.client ? item.client.toUpperCase() : 'CLIENT'}</h4>
+                            <div class="flex justify-between items-center mb-1">
                                 <span class="text-[7px] uppercase tracking-tighter text-[var(--dix-light-green)] font-bold">${item.category}</span>
                                 <span class="text-[7px] font-bold px-1 py-0.5 bg-gray-100 rounded group-hover:bg-[var(--dix-light-green)] group-hover:text-white transition-colors">${item.year}</span>
                             </div>
@@ -307,17 +307,11 @@
                     iconSize: [12, 12], iconAnchor: [6, 6]
                 });
                 L.marker([item.lat, item.lng], { icon: markerIcon }).addTo(markersLayer).on('click', () => selectRef(item));
-                
                 bounds.push([item.lat, item.lng]);
             });
 
-            // Ajustement automatique de la carte sur les résultats
             if (bounds.length > 0) {
-                map.fitBounds(bounds, { 
-                    padding: [50, 50], 
-                    maxZoom: 12,
-                    duration: 1.5 
-                });
+                map.fitBounds(bounds, { padding: [40, 40], maxZoom: 11, duration: 1.5 });
             }
         }
 
@@ -328,7 +322,7 @@
                 card.classList.add('active-card');
                 card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
-            map.flyTo([item.lat, item.lng], 10, { duration: 1.2 });
+            map.flyTo([item.lat, item.lng], 11, { duration: 1.2 });
             
             document.getElementById('detTitle').textContent = item.title ? item.title.toUpperCase() : '';
             document.getElementById('detClient').textContent = item.client;
