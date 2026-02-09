@@ -45,6 +45,13 @@
             box-shadow: -10px 0 30px rgba(0,0,0,0.1);
         }
 
+        .logo-container {
+            max-width: 140px;
+            max-height: 70px;
+            object-fit: contain;
+            margin-bottom: 1rem;
+        }
+
         @media (max-width: 768px) {
             #detailPanel { 
                 top: auto !important;
@@ -54,7 +61,7 @@
                 width: 100% !important;
                 border-radius: 20px 20px 0 0; 
                 max-height: 75vh; 
-                transform: translateY(150%); /* Sur mobile on garde le glissement vertical */
+                transform: translateY(150%);
             }
         }
     </style>
@@ -102,12 +109,18 @@
         <div class="flex-1 relative">
             <div id="map"></div>
             
-            <!-- DETAIL PANEL (Maintenant en haut à droite) -->
+            <!-- DETAIL PANEL -->
             <div id="detailPanel" class="absolute top-6 right-6 w-[calc(100%-3rem)] md:w-96 bg-white rounded-2xl shadow-2xl p-6 border-t-8 border-[var(--dix-dark-green)] transform translate-x-[120%] z-[1000] overflow-hidden">
                 <button onclick="closeDetails()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors">
                     <i data-lucide="x" class="w-6 h-6"></i>
                 </button>
+                
                 <div class="flex flex-col gap-2">
+                    <!-- Zone Logo Client -->
+                    <div id="detLogoContainer" class="hidden flex justify-start">
+                        <img id="detLogo" src="" alt="Logo client" class="logo-container">
+                    </div>
+
                     <div class="flex items-center gap-3">
                         <span id="detYear" class="bg-[var(--dix-white-grey)] text-[10px] font-bold px-2 py-1 rounded text-[var(--dix-dark-green)]"></span>
                         <span id="detTheme" class="text-[10px] uppercase tracking-widest font-bold text-[var(--dix-light-green)]"></span>
@@ -134,7 +147,16 @@
         const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSm_4bPCRFK_gGVkxP-ZeTHzLauhQtqNg_zG2chKNuY8-iyDAuHjc_CQbpBCU4LY9-GRi1579CsUkhr/pub?gid=917397259&single=true&output=csv";
         
         let COLS = {
-            ANNEE: 0, REGION: 1, CLIENT: 3, TYPE: 4, TITRE: 5, DESC: 6, VILLE: 8, LAT: 9, LNG: 10
+            ANNEE: 0, 
+            REGION: 1, 
+            LOGO: 2, 
+            CLIENT: 3, 
+            TYPE: 4, 
+            TITRE: 5, 
+            DESC: 6, 
+            VILLE: 8, 
+            LAT: 9, 
+            LNG: 10
         };
 
         let allData = [];
@@ -170,6 +192,18 @@
             updateLoaderStatus("Carte prête", "Connexion au Google Sheet");
         }
 
+        // Nettoie l'URL au cas où elle arrive avec des résidus de formule
+        function cleanUrl(text) {
+            if (!text) return null;
+            let url = text.trim();
+            // Si c'est une formule, on extrait ce qu'il y a entre guillemets
+            const match = url.match(/["'](http[^"']+)["']/i);
+            if (match) return match[1];
+            // Sinon si c'est déjà une URL pure
+            if (url.startsWith('http')) return url;
+            return null;
+        }
+
         function loadData() {
             updateLoaderStatus("Lecture...", "Récupération des références");
             Papa.parse(CSV_URL, {
@@ -181,24 +215,20 @@
                         updateLoaderStatus("Erreur : Fichier vide", "Vérifiez la publication de votre onglet.");
                         return;
                     }
-                    const header = results.data[0];
                     const rows = results.data.slice(1);
-                    const findCol = (names) => header.findIndex(h => names.some(n => h.toLowerCase().includes(n.toLowerCase())));
-                    const idxLat = findCol(['lat', 'latitude']);
-                    const idxLng = findCol(['long', 'lng', 'longitude']);
-                    if (idxLat !== -1) COLS.LAT = idxLat;
-                    if (idxLng !== -1) COLS.LNG = idxLng;
-
+                    
                     allData = rows.map((row, index) => {
                         try {
                             const cleanCoord = (val) => String(val || "").replace(/\s/g, '').replace(',', '.').trim();
                             const lat = parseFloat(cleanCoord(row[COLS.LAT]));
                             const lng = parseFloat(cleanCoord(row[COLS.LNG]));
                             if (isNaN(lat) || isNaN(lng)) return null;
+
                             return {
                                 id: index,
                                 year: row[COLS.ANNEE] || "N/C",
                                 region: row[COLS.REGION] || "N/C",
+                                logo: cleanUrl(row[COLS.LOGO]),
                                 client: row[COLS.CLIENT] || "Client",
                                 theme: row[COLS.TYPE] || "Autre",
                                 title: row[COLS.TITRE] || "Sans titre",
@@ -245,7 +275,7 @@
                 card.className = "p-4 bg-white rounded-xl cursor-pointer transition-all shadow-sm hover:shadow-md border border-gray-100 group";
                 card.innerHTML = `
                     <div class="flex justify-between items-start mb-1">
-                        <span class="text-[9px] font-bold px-1.5 py-0.5 bg-gray-50 rounded group-hover:bg-[var(--dix-light-green)] group-hover:text-white transition-colors">${item.year}</span>
+                        <span class="text-[9px] font-bold px-1.5 py-0.5 bg-gray-100 rounded group-hover:bg-[var(--dix-light-green)] group-hover:text-white transition-colors">${item.year}</span>
                         <span class="text-[9px] uppercase tracking-tighter text-[var(--dix-light-green)] font-bold">${item.theme || ''}</span>
                     </div>
                     <h4 class="text-sm leading-tight text-[var(--dix-dark-green)] font-oswald">${item.title ? item.title.toUpperCase() : 'SANS TITRE'}</h4>
@@ -271,12 +301,23 @@
                 card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
             map.flyTo([item.lat, item.lng], 10, { duration: 1.2 });
+            
             document.getElementById('detTitle').textContent = item.title ? item.title.toUpperCase() : '';
             document.getElementById('detClient').textContent = item.client;
             document.getElementById('detYear').textContent = item.year;
             document.getElementById('detTheme').textContent = item.theme;
             document.getElementById('detDesc').textContent = item.desc;
             document.getElementById('detLoc').textContent = `${item.city || ''} (${item.region || ''})`;
+            
+            // Affichage du Logo
+            const logoCont = document.getElementById('detLogoContainer');
+            const logoImg = document.getElementById('detLogo');
+            if (item.logo) {
+                logoImg.src = item.logo;
+                logoCont.classList.remove('hidden');
+            } else {
+                logoCont.classList.add('hidden');
+            }
             
             const panel = document.getElementById('detailPanel');
             if (window.innerWidth <= 768) {
