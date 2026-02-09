@@ -46,10 +46,10 @@
         }
 
         .logo-container {
-            max-width: 140px;
-            max-height: 70px;
+            max-width: 160px; /* Légèrement agrandi */
+            max-height: 80px; /* Légèrement agrandi */
             object-fit: contain;
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
         }
 
         @media (max-width: 768px) {
@@ -109,9 +109,9 @@
         <div class="flex-1 relative">
             <div id="map"></div>
             
-            <!-- DETAIL PANEL -->
-            <div id="detailPanel" class="absolute top-6 right-6 w-[calc(100%-3rem)] md:w-96 bg-white rounded-2xl shadow-2xl p-6 border-t-8 border-[var(--dix-dark-green)] transform translate-x-[120%] z-[1000] overflow-hidden">
-                <button onclick="closeDetails()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors">
+            <!-- DETAIL PANEL (Élargi à 480px sur desktop) -->
+            <div id="detailPanel" class="absolute top-6 right-6 w-[calc(100%-3rem)] md:w-[480px] bg-white rounded-2xl shadow-2xl p-8 border-t-8 border-[var(--dix-dark-green)] transform translate-x-[120%] z-[1000] overflow-hidden">
+                <button onclick="closeDetails()" class="absolute top-6 right-6 text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors">
                     <i data-lucide="x" class="w-6 h-6"></i>
                 </button>
                 
@@ -125,11 +125,11 @@
                         <span id="detYear" class="bg-[var(--dix-white-grey)] text-[10px] font-bold px-2 py-1 rounded text-[var(--dix-dark-green)]"></span>
                         <span id="detTheme" class="text-[10px] uppercase tracking-widest font-bold text-[var(--dix-light-green)]"></span>
                     </div>
-                    <h2 id="detTitle" class="text-xl text-[var(--dix-dark-green)] leading-tight font-oswald"></h2>
+                    <h2 id="detTitle" class="text-2xl text-[var(--dix-dark-green)] leading-tight font-oswald"></h2>
                     <p id="detClient" class="text-sm font-bold text-gray-500"></p>
-                    <div class="h-px bg-gray-100 w-full my-3"></div>
-                    <div id="detDesc" class="text-gray-600 text-sm italic leading-relaxed whitespace-pre-line max-h-60 overflow-y-auto custom-scroll pr-2"></div>
-                    <div class="flex items-center gap-2 mt-4 text-[10px] text-gray-400 uppercase tracking-widest font-oswald border-t pt-4">
+                    <div class="h-px bg-gray-100 w-full my-4"></div>
+                    <div id="detDesc" class="text-gray-600 text-base italic leading-relaxed whitespace-pre-line max-h-[400px] overflow-y-auto custom-scroll pr-4"></div>
+                    <div class="flex items-center gap-2 mt-6 text-[10px] text-gray-400 uppercase tracking-widest font-oswald border-t pt-4">
                         <i data-lucide="map-pin" class="w-3 h-3 text-[var(--dix-light-green)]"></i>
                         <span id="detLoc"></span>
                     </div>
@@ -192,14 +192,11 @@
             updateLoaderStatus("Carte prête", "Connexion au Google Sheet");
         }
 
-        // Nettoie l'URL au cas où elle arrive avec des résidus de formule
         function cleanUrl(text) {
             if (!text) return null;
             let url = text.trim();
-            // Si c'est une formule, on extrait ce qu'il y a entre guillemets
             const match = url.match(/["'](http[^"']+)["']/i);
             if (match) return match[1];
-            // Sinon si c'est déjà une URL pure
             if (url.startsWith('http')) return url;
             return null;
         }
