@@ -130,7 +130,7 @@
                     <p id="detClient" class="text-xs font-bold text-gray-500"></p>
                     <div class="h-px bg-gray-100 w-full my-2.5"></div>
                     <div id="detDesc" class="text-gray-600 text-[11px] md:text-xs italic leading-relaxed whitespace-pre-line pr-2 mb-3"></div>
-                    <div class="flex items-center gap-2 mt-4 text-[8px] text-gray-400 uppercase tracking-widest font-oswald border-t pt-3">
+                    <div class="flex items-center gap-2 mt-2 text-[8px] text-gray-400 uppercase tracking-widest font-oswald border-t pt-3">
                         <i data-lucide="map-pin" class="w-2.5 h-2.5 text-[var(--dix-light-green)]"></i>
                         <span id="detLoc"></span>
                     </div>
@@ -269,6 +269,10 @@
             const listContainer = document.getElementById('resultsList');
             listContainer.innerHTML = '';
             markersLayer.clearLayers();
+
+            // Pour stocker les coordonnées et ajuster la vue
+            const bounds = [];
+
             data.forEach(item => {
                 const card = document.createElement('div');
                 card.id = `card-${item.id}`;
@@ -303,7 +307,18 @@
                     iconSize: [12, 12], iconAnchor: [6, 6]
                 });
                 L.marker([item.lat, item.lng], { icon: markerIcon }).addTo(markersLayer).on('click', () => selectRef(item));
+                
+                bounds.push([item.lat, item.lng]);
             });
+
+            // Ajustement automatique de la carte sur les résultats
+            if (bounds.length > 0) {
+                map.fitBounds(bounds, { 
+                    padding: [50, 50], 
+                    maxZoom: 12,
+                    duration: 1.5 
+                });
+            }
         }
 
         function selectRef(item) {
