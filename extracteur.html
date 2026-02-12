@@ -72,21 +72,28 @@
         <p class="text-gray-500 italic">D.I.X. Autrement — Conseil en systèmes alimentaires durables</p>
     </div>
 
-    <!-- ZONE DE CHARGEMENT / ERREUR -->
+    <!-- ZONE DE CHARGEMENT / IMPORTATION MANUELLE -->
     <div id="status-container" class="max-w-2xl mx-auto mt-20 text-center px-6">
         <div id="loader" class="flex flex-col items-center">
             <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--dix-green)] mb-4"></div>
             <p class="font-oswald uppercase tracking-widest text-gray-400">Tentative de synchronisation...</p>
         </div>
 
-        <div id="error-fallback" class="hidden mt-8 p-8 bg-white border border-dashed border-gray-300 rounded-2xl shadow-sm">
-            <i data-lucide="alert-circle" class="w-10 h-10 text-orange-400 mx-auto mb-4"></i>
-            <h2 class="font-oswald text-xl mb-2">Synchronisation bloquée</h2>
-            <p class="text-sm text-gray-500 mb-6">Le navigateur bloque l'accès automatique au fichier (sécurité CORS). Veuillez importer votre fichier CSV manuellement pour continuer.</p>
+        <!-- Ce bloc est maintenant affiché si la sync échoue ou est trop longue -->
+        <div id="error-fallback" class="hidden mt-8 p-10 bg-white border border-dashed border-gray-300 rounded-3xl shadow-xl">
+            <div class="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i data-lucide="upload-cloud" class="w-8 h-8 text-orange-500"></i>
+            </div>
+            <h2 class="font-oswald text-2xl mb-3 text-[var(--dix-dark)]">Importation des données</h2>
+            <p class="text-sm text-gray-500 mb-8 leading-relaxed">
+                La synchronisation automatique est bloquée (souvent lié à la sécurité du navigateur en local).<br>
+                Veuillez sélectionner votre fichier <strong>CSV</strong> pour générer les fiches.
+            </p>
             <input type="file" id="csv-upload" accept=".csv" class="hidden">
-            <label for="csv-upload" class="bg-[var(--dix-dark)] text-white px-6 py-3 rounded font-oswald tracking-widest cursor-pointer hover:bg-black transition-all">
+            <label for="csv-upload" class="inline-block bg-[var(--dix-dark)] text-white px-8 py-4 rounded-xl font-oswald tracking-[0.2em] cursor-pointer hover:bg-black transition-all shadow-lg hover:shadow-2xl">
                 SÉLECTIONNER LE FICHIER CSV
             </label>
+            <p class="mt-6 text-[10px] text-gray-400 uppercase tracking-widest italic">Format attendu : .csv (Export Google Sheets)</p>
         </div>
     </div>
 
@@ -117,19 +124,29 @@
                 header: true,
                 skipEmptyLines: true,
                 complete: (results) => {
-                    if(results.data.length > 0) processData(results.data);
-                    else showFallback();
+                    if(results.data && results.data.length > 0) {
+                        processData(results.data);
+                    } else {
+                        showFallback();
+                    }
                 },
-                error: () => showFallback()
+                error: (err) => {
+                    console.error("PapaParse error:", err);
+                    showFallback();
+                }
             });
-            // Timeout si ça prend trop de temps
-            setTimeout(() => { if(allData.length === 0) showFallback(); }, 3000);
+            // Si après 2 secondes rien n'est chargé, on propose l'import manuel
+            setTimeout(() => { 
+                if(allData.length === 0) showFallback(); 
+            }, 2000);
         }
 
-        // Afficher l'import manuel si l'auto échoue
+        // Afficher l'import manuel
         function showFallback() {
-            document.getElementById('loader').classList.add('hidden');
-            document.getElementById('error-fallback').classList.remove('hidden');
+            const loader = document.getElementById('loader');
+            const fallback = document.getElementById('error-fallback');
+            if (loader) loader.classList.add('hidden');
+            if (fallback) fallback.classList.remove('hidden');
         }
 
         // Gérer l'upload manuel
@@ -139,7 +156,8 @@
                 Papa.parse(file, {
                     header: true,
                     skipEmptyLines: true,
-                    complete: (results) => processData(results.data)
+                    complete: (results) => processData(results.data),
+                    error: (err) => alert("Erreur lors de la lecture du fichier : " + err)
                 });
             }
         });
@@ -147,28 +165,36 @@
         // Traitement des données (Mapping flexible)
         function processData(data) {
             allData = data.map((row, i) => {
-                // On cherche les colonnes avec ou sans accents
+                // Fonction pour trouver une valeur même si le nom de la colonne varie (accents, majuscules)
                 const findValue = (keys) => {
-                    const key = Object.keys(row).find(k => keys.includes(k.toLowerCase().trim()));
-                    return key ? row[key] : "";
+                    const rowKeys = Object.keys(row);
+                    const matchingKey = rowKeys.find(k => {
+                        const normalizedK = k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        return keys.some(key => normalizedK.includes(key));
+                    });
+                    return matchingKey ? row[matchingKey] : "";
                 };
 
                 return {
                     id: i,
-                    year: findValue(['année', 'annee']),
+                    year: findValue(['annee', 'year']),
                     client: findValue(['commanditaire', 'client']),
-                    title: findValue(['intitulé de la mission', 'intitule', 'titre']),
-                    desc: findValue(['descriptif de la mission', 'descriptif', 'description']),
-                    theme: findValue(['thématique', 'thematique', 'catégorie', 'categorie']),
+                    title: findValue(['intitule', 'titre', 'mission']),
+                    desc: findValue(['descriptif', 'description']),
+                    theme: findValue(['thematique', 'categorie', 'type']),
                     city: findValue(['ville']),
-                    region: findValue(['région', 'region']),
+                    region: findValue(['region']),
                     logo: cleanLogo(findValue(['logos', 'logo']))
                 };
             }).filter(d => d.title && d.title.length > 2);
 
-            document.getElementById('status-container').classList.add('hidden');
-            initFilters();
-            render();
+            if(allData.length > 0) {
+                document.getElementById('status-container').classList.add('hidden');
+                initFilters();
+                render();
+            } else {
+                alert("Aucune donnée valide trouvée dans le fichier. Vérifiez les entêtes.");
+            }
         }
 
         function cleanLogo(text) {
@@ -180,6 +206,8 @@
         function initFilters() {
             const themes = [...new Set(allData.map(d => d.theme))].filter(Boolean).sort();
             const select = document.getElementById('filterTheme');
+            // Reset
+            select.innerHTML = '<option value="">Toutes les thématiques</option>';
             themes.forEach(t => {
                 const opt = document.createElement('option');
                 opt.value = t; opt.textContent = t.toUpperCase();
@@ -209,7 +237,7 @@
                              </label>
                         </div>
 
-                        <!-- Colonne Infos GAUCHE (1/4) -->
+                        <!-- Colonne Infos GAUCHE -->
                         <div class="w-full md:w-1/4 flex flex-col items-center md:items-start border-b md:border-b-0 md:border-r border-gray-100 pb-6 md:pb-0 md:pr-10">
                             <div class="h-28 w-full flex items-center justify-center mb-8 bg-gray-50 rounded-lg p-4">
                                 ${item.logo 
@@ -229,7 +257,7 @@
                             </div>
                         </div>
 
-                        <!-- Colonne Texte DROITE (3/4) -->
+                        <!-- Colonne Texte DROITE -->
                         <div class="flex-1">
                             <div class="mb-6">
                                 <h4 class="text-xs font-bold text-gray-400 mb-1 tracking-tight">${item.client ? item.client.toUpperCase() : ''}</h4>
@@ -252,10 +280,11 @@
 
         function toggleRef(id) {
             const card = document.getElementById(`card-${id}`);
-            card.classList.toggle('excluded');
-            // Désactiver l'impression pour cet élément
-            if(card.classList.contains('excluded')) card.classList.add('no-print');
-            else card.classList.remove('no-print');
+            if(card) {
+                card.classList.toggle('excluded');
+                if(card.classList.contains('excluded')) card.classList.add('no-print');
+                else card.classList.remove('no-print');
+            }
         }
     </script>
 </body>
