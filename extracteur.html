@@ -50,6 +50,11 @@
 
         /* Styles miroirs pour la génération d'image (copie exacte des règles print) */
         .generating-image .no-print { display: none !important; }
+        
+        /* Masquer spécifiquement l'entête lors de la génération d'image */
+        .generating-image #docHeader { display: none !important; }
+        .generating-image footer { display: none !important; }
+
         .generating-image #exportArea { box-shadow: none !important; border: none !important; width: 100% !important; max-width: 21cm !important; margin: 0 auto !important; padding: 1cm !important; background: white !important; }
         .generating-image .reference-card { display: flex !important; flex-direction: row !important; align-items: stretch !important; margin-bottom: 0.5cm !important; padding-bottom: 0.5cm !important; padding-top: 0.5cm !important; border-bottom: 1px solid #000 !important; background-color: transparent !important; border-left: none !important; opacity: 1 !important; transform: none !important; }
         .generating-image .reference-card:not(.selected) { display: none !important; }
@@ -116,8 +121,8 @@
     <!-- PAGE DOCUMENT -->
     <main id="exportArea" class="max-w-5xl mx-auto bg-white p-8 md:p-12 shadow-2xl rounded-sm min-h-[29.7cm] relative z-10">
         
-        <!-- HEADER DOCUMENT AVEC LOGO -->
-        <div class="border-b-4 border-[var(--dix-dark-green)] pb-4 mb-6 flex justify-between items-end">
+        <!-- HEADER DOCUMENT AVEC LOGO (ID ajouté pour masquage lors de l'export image) -->
+        <div id="docHeader" class="border-b-4 border-[var(--dix-dark-green)] pb-4 mb-6 flex justify-between items-end">
             <div class="w-1/3">
                 <!-- ID ajouté pour le script de conversion Base64 -->
                 <img id="mainLogo" src="logo.png" onerror="this.src='https://placehold.co/200x80/white/405F59?text=LOGO+D.I.X.'" alt="Logo D.I.X." class="h-16 object-contain" crossOrigin="anonymous">
@@ -187,21 +192,10 @@
 
         function generateImage() {
             const element = document.getElementById('exportArea');
-            const footer = document.getElementById('printFooter');
+            // On ne clone PAS le pied de page pour l'image
             
             document.body.classList.add('generating-image');
             
-            const footerClone = footer.cloneNode(true);
-            footerClone.id = "temp-footer";
-            footerClone.classList.remove('hidden');
-            footerClone.style.position = 'static'; 
-            footerClone.style.marginTop = '2rem';
-            footerClone.style.borderTop = '2px solid var(--dix-dark-green)';
-            footerClone.style.paddingTop = '10px';
-            footerClone.style.fontSize = '8pt';
-            
-            element.appendChild(footerClone);
-
             html2canvas(element, {
                 scale: 2,
                 useCORS: true, // Indispensable pour les images
@@ -213,7 +207,6 @@
                 }
             }).then(canvas => {
                 document.body.classList.remove('generating-image');
-                element.removeChild(footerClone);
                 
                 const link = document.createElement('a');
                 link.download = `References_DIX_${new Date().toISOString().slice(0,10)}.png`;
@@ -223,7 +216,6 @@
                 console.error("Erreur génération image:", err);
                 alert("Erreur lors de la génération. Vérifiez que les images sont accessibles.");
                 document.body.classList.remove('generating-image');
-                if(document.getElementById('temp-footer')) element.removeChild(footerClone);
             });
         }
 
