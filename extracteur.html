@@ -3,298 +3,162 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>D.I.X. - Générateur de Mémoire de Références</title>
-    
-    <!-- Polices Charte D.I.X. -->
+    <title>D.I.X. - Extracteur de Références</title>
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500&family=Georgia&display=swap" rel="stylesheet">
-    
-    <!-- Bibliothèques -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.0/lucide.min.js"></script>
 
     <style>
         :root {
-            --dix-dark: #405F59;
-            --dix-green: #549e39;
-            --dix-grey: #f3f3f3;
+            --dix-dark-green: #405F59;
+            --dix-light-green: #549e39;
         }
 
-        body { font-family: 'Georgia', serif; color: var(--dix-dark); background-color: #f9f9f9; }
-        h1, h2, h3, h4, .font-oswald { font-family: 'Oswald', sans-serif; text-transform: uppercase; font-weight: 400; }
+        body { font-family: 'Georgia', serif; color: var(--dix-dark-green); background-color: #f9f9f9; }
         
-        /* Styles Impression Corrigés */
+        h1, h2, h3, .font-oswald { font-family: 'Oswald', sans-serif; text-transform: uppercase; }
+
+        /* Style spécifique pour l'impression */
         @media print {
             .no-print { display: none !important; }
-            body { background: white !important; padding: 0 !important; margin: 0 !important; }
-            
-            /* Conteneur principal sans marges excessives */
-            #ref-grid { 
-                padding: 0 !important; 
-                margin: 0 !important; 
-                display: block !important;
+            body { background-color: white; }
+            .reference-card { 
+                break-inside: avoid; 
+                border-bottom: 1px solid #eee !important;
+                margin-bottom: 1.5rem !important;
+                padding-bottom: 1rem !important;
             }
-
-            /* Forcer le format carte horizontal en PDF */
-            .ref-card { 
-                display: flex !important;
-                flex-direction: row !important;
-                border: 1px solid #eee !important; 
-                border-top: 4px solid var(--dix-dark) !important;
-                box-shadow: none !important; 
-                break-inside: avoid !important;
-                page-break-inside: avoid !important;
-                margin-bottom: 15px !important; /* Réduit pour en mettre 4/5 par page */
-                padding: 15px !important;
-                background-color: white !important;
-            }
-
-            /* Ajustement des colonnes pour le PDF */
-            .col-left { width: 25% !important; border-right: 1px solid #eee !important; padding-right: 15px !important; }
-            .col-right { width: 75% !important; padding-left: 15px !important; }
-            
-            .logo-box { height: 60px !important; margin-bottom: 10px !important; }
-            .desc-text { font-size: 10pt !important; line-height: 1.3 !important; }
-            h3 { font-size: 14pt !important; margin-bottom: 4px !important; }
-            
-            @page { margin: 1.5cm; }
+            .page-break { page-break-after: always; }
         }
 
-        /* Styles Interface Web */
-        .ref-card { border-top: 5px solid var(--dix-dark); transition: all 0.3s ease; }
-        .excluded { opacity: 0.15; filter: grayscale(1); }
-        .custom-scroll::-webkit-scrollbar { width: 4px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: var(--dix-green); border-radius: 10px; }
+        .reference-card { transition: all 0.2s ease; }
+        .logo-img { max-width: 120px; max-height: 50px; object-fit: contain; }
     </style>
 </head>
-<body class="min-h-screen pb-10">
+<body class="p-4 md:p-8">
 
-    <!-- BARRE DE COMMANDE -->
-    <div class="no-print sticky top-0 z-50 bg-white border-b shadow-sm p-4">
-        <div class="max-w-6xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-4">
-            <div class="flex items-center gap-4">
-                <div class="text-2xl font-oswald tracking-tighter border-r pr-4 border-gray-200 text-[var(--dix-dark)]">D.I.X.</div>
-                <h1 class="text-sm tracking-widest hidden md:block">Générateur de Références</h1>
+    <header class="no-print max-w-5xl mx-auto bg-white p-6 rounded-xl shadow-sm border mb-8">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl tracking-widest text-[var(--dix-dark-green)]">Extracteur de Références</h1>
+                <p class="text-xs text-gray-500 italic mt-1">Sélectionnez une thématique pour générer votre liste</p>
             </div>
-
-            <div class="flex items-center gap-3 flex-wrap justify-center">
-                <select id="filterTheme" class="bg-gray-50 border border-gray-200 text-[10px] uppercase tracking-widest p-2 rounded outline-none focus:border-[var(--dix-green)] min-w-[180px]">
-                    <option value="">Chargement des thématiques...</option>
+            
+            <div class="flex gap-3">
+                <select id="themeFilter" class="px-4 py-2 border rounded-lg text-sm outline-none bg-white cursor-pointer hover:border-[var(--dix-light-green)] transition-colors">
+                    <option value="">Toutes les thématiques</option>
                 </select>
-
-                <input type="file" id="csv-upload" accept=".csv" class="hidden">
-                <label for="csv-upload" class="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded text-[10px] font-oswald tracking-widest cursor-pointer hover:bg-gray-50 transition-all text-gray-500">
-                    <i data-lucide="file-up" class="w-3.5 h-3.5"></i> IMPORTER CSV
-                </label>
-                
-                <button id="btnPrint" onclick="window.print()" class="hidden bg-[var(--dix-green)] text-white px-5 py-2 rounded font-oswald flex items-center gap-2 hover:brightness-90 transition-all text-sm tracking-widest">
-                    <i data-lucide="printer" class="w-4 h-4"></i> EXPORTER PDF
+                <button onclick="window.print()" class="bg-[var(--dix-dark-green)] text-white px-5 py-2 rounded-lg text-sm font-oswald flex items-center gap-2 hover:bg-black transition-colors">
+                    <i data-lucide="printer" class="w-4 h-4"></i> IMPRIMER / PDF
                 </button>
             </div>
         </div>
-    </div>
+    </header>
 
-    <!-- ENTÊTE PDF -->
-    <div class="print-only text-center py-6 border-b-2 border-[var(--dix-green)] mb-6">
-        <h1 class="text-3xl tracking-[0.2em] mb-1">NOS RÉFÉRENCES</h1>
-        <p class="text-sm text-gray-500 italic">D.I.X. Autrement — Conseil en systèmes alimentaires durables</p>
-    </div>
-
-    <!-- ZONE D'ACCUEIL / VIDE -->
-    <div id="status-area" class="max-w-2xl mx-auto mt-20 text-center px-6">
-        <div id="loader" class="flex flex-col items-center">
-            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--dix-green)] mb-4"></div>
-            <p class="font-oswald uppercase tracking-widest text-gray-400">Synchronisation avec le Cloud...</p>
+    <main id="exportArea" class="max-w-5xl mx-auto bg-white p-8 md:p-12 shadow-sm min-h-[29.7cm]">
+        <div class="border-b-2 border-[var(--dix-light-green)] pb-6 mb-8 flex justify-between items-end">
+            <div>
+                <h2 id="docTitle" class="text-3xl text-[var(--dix-dark-green)]">Nos Références</h2>
+                <p id="docSubtitle" class="text-[var(--dix-light-green)] font-oswald tracking-widest mt-1"></p>
+            </div>
+            <div class="text-right">
+                <p class="font-oswald text-sm">D.I.X. AUTREMENT</p>
+                <p class="text-[10px] text-gray-400">Généré le <span id="currentDate"></span></p>
+            </div>
         </div>
 
-        <div id="import-prompt" class="hidden mt-8 p-12 bg-white border-2 border-dashed border-gray-200 rounded-3xl shadow-sm">
-            <i data-lucide="database" class="w-12 h-12 text-gray-300 mx-auto mb-6"></i>
-            <h2 class="font-oswald text-2xl mb-3 text-[var(--dix-dark)]">Données non synchronisées</h2>
-            <p class="text-sm text-gray-500 mb-8">
-                La lecture automatique est restreinte en local.<br>
-                Utilisez le bouton ci-dessous pour charger votre fichier CSV.
-            </p>
-            <label for="csv-upload" class="inline-block bg-[var(--dix-dark)] text-white px-8 py-4 rounded-xl font-oswald tracking-[0.2em] cursor-pointer hover:bg-black transition-all">
-                SÉLECTIONNER LE FICHIER CSV
-            </label>
+        <div id="refsList" class="space-y-8">
+            <div class="flex flex-col items-center py-20 text-gray-300">
+                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--dix-light-green)] mb-4"></div>
+                <p class="font-oswald tracking-widest">Chargement des données...</p>
+            </div>
         </div>
-    </div>
 
-    <!-- GRILLE DES FICHES -->
-    <div id="ref-grid" class="max-w-5xl mx-auto p-4 md:p-6 grid grid-cols-1 gap-6"></div>
-
-    <!-- FOOTER PDF -->
-    <div class="print-only mt-6 pt-4 border-t text-[8px] text-center text-gray-400 font-oswald tracking-widest uppercase">
-        D.I.X. Autrement — www.dix-autrement.fr — contact@dix-autrement.fr
-    </div>
+        <footer class="mt-12 pt-8 border-t text-[10px] text-gray-400 text-center italic">
+            D.I.X. Autrement — Modélisation & Évaluation de circuits de proximité
+        </footer>
+    </main>
 
     <script>
         const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSm_4bPCRFK_gGVkxP-ZeTHzLauhQtqNg_zG2chKNuY8-iyDAuHjc_CQbpBCU4LY9-GRi1579CsUkhr/pub?gid=917397259&single=true&output=csv";
+        
         let allData = [];
+        const COLS = { ANNEE: 0, REGION: 1, LOGO: 2, CLIENT: 3, TITRE: 6, DESC: 7, VILLE: 9, CATEGORIE: 5 };
 
         window.onload = () => {
-            lucide.createIcons();
-            
-            // Logic de synchronisation calquée sur index.html (header: false + findCol)
+            if (window.lucide) lucide.createIcons();
+            document.getElementById('currentDate').textContent = new Date().toLocaleDateString('fr-FR');
+            loadData();
+        };
+
+        function loadData() {
             Papa.parse(CSV_URL, {
                 download: true,
                 header: false,
                 skipEmptyLines: true,
-                complete: (results) => {
-                    if (results.data && results.data.length > 1) {
-                        processRawData(results.data);
-                    } else {
-                        showImportPrompt();
-                    }
-                },
-                error: () => showImportPrompt()
+                complete: function(results) {
+                    const rows = results.data.slice(1);
+                    allData = rows.map(row => ({
+                        year: row[COLS.ANNEE] || "",
+                        region: row[COLS.REGION] || "",
+                        logo: cleanUrl(row[COLS.LOGO]),
+                        client: row[COLS.CLIENT] || "",
+                        category: row[COLS.CATEGORIE] || "",
+                        title: row[COLS.TITRE] || "",
+                        desc: row[COLS.DESC] || "",
+                        city: row[COLS.VILLE] || ""
+                    })).filter(d => d.title);
+                    
+                    renderFilters();
+                    renderRefs(allData);
+                }
             });
-
-            setTimeout(() => { if (allData.length === 0) showImportPrompt(); }, 3000);
-        };
-
-        function showImportPrompt() {
-            document.getElementById('loader').style.display = 'none';
-            document.getElementById('import-prompt').classList.remove('hidden');
         }
 
-        document.getElementById('csv-upload').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                Papa.parse(file, {
-                    header: false,
-                    skipEmptyLines: true,
-                    complete: (results) => processRawData(results.data)
-                });
-            }
-        });
-
-        function processRawData(rows) {
-            const header = rows[0];
-            const dataRows = rows.slice(1);
-
-            // Détection dynamique identique à index.html
-            const findCol = (names) => {
-                return header.findIndex(h => names.some(n => 
-                    String(h).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(n)
-                ));
-            };
-
-            const idx = {
-                annee: findCol(['annee']),
-                region: findCol(['region']),
-                logo: findCol(['logos', 'logo']),
-                client: findCol(['commanditaire', 'client']),
-                theme: findCol(['thematique', 'categorie']),
-                titre: findCol(['intitule', 'titre']),
-                desc: findCol(['descriptif', 'description']),
-                ville: findCol(['ville'])
-            };
-
-            allData = dataRows.map((row, i) => ({
-                id: i,
-                year: row[idx.annee] || "",
-                region: row[idx.region] || "",
-                logo: cleanLogo(row[idx.logo]),
-                client: row[idx.client] || "Client",
-                theme: row[idx.theme] || "AUTRE",
-                title: row[idx.titre] || "",
-                desc: row[idx.desc] || "",
-                city: row[idx.ville] || ""
-            })).filter(d => d.title && d.title.length > 2);
-
-            if (allData.length > 0) {
-                document.getElementById('status-area').style.display = 'none';
-                document.getElementById('btnPrint').classList.remove('hidden');
-                initFilters();
-                render();
-            }
+        function cleanUrl(text) {
+            if (!text) return null;
+            let url = text.trim();
+            const match = url.match(/["'](http[^"']+)["']/i);
+            return match ? match[1] : (url.startsWith('http') ? url : null);
         }
 
-        function cleanLogo(text) {
-            if(!text) return null;
-            const match = text.match(/["'](http[^"']+)["']/i);
-            return match ? match[1] : (text.startsWith('http') ? text : null);
-        }
-
-        function initFilters() {
-            const themes = [...new Set(allData.map(d => d.theme))].filter(Boolean).sort();
-            const select = document.getElementById('filterTheme');
-            select.innerHTML = '<option value="">Toutes les thématiques</option>';
-            themes.forEach(t => {
+        function renderFilters() {
+            const categories = [...new Set(allData.map(d => d.category))].filter(Boolean).sort();
+            const select = document.getElementById('themeFilter');
+            categories.forEach(c => {
                 const opt = document.createElement('option');
-                opt.value = t; opt.textContent = t.toUpperCase();
+                opt.value = c; opt.textContent = c;
                 select.appendChild(opt);
             });
-            select.onchange = render;
+            select.onchange = (e) => {
+                const filtered = e.target.value ? allData.filter(d => d.category === e.target.value) : allData;
+                document.getElementById('docSubtitle').textContent = e.target.value.toUpperCase();
+                renderRefs(filtered);
+            };
         }
 
-        function render() {
-            const grid = document.getElementById('ref-grid');
-            const selectedTheme = document.getElementById('filterTheme').value;
-            grid.innerHTML = '';
+        function renderRefs(data) {
+            const container = document.getElementById('refsList');
+            container.innerHTML = '';
 
-            const filtered = allData.filter(d => !selectedTheme || d.theme === selectedTheme);
-
-            filtered.forEach(item => {
-                const card = document.createElement('div');
-                card.className = "ref-card bg-white p-6 md:p-8 shadow-sm rounded-lg flex flex-col md:flex-row gap-6 relative overflow-hidden transition-all duration-300";
-                card.id = `card-${item.id}`;
-                
-                card.innerHTML = `
-                    <!-- Bouton Inclusion (no-print) -->
-                    <div class="no-print absolute top-3 right-3 flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-full border border-gray-200">
-                         <input type="checkbox" checked onchange="toggleRef(${item.id})" class="w-3.5 h-3.5 cursor-pointer accent-[var(--dix-green)]">
-                         <label class="text-[8px] font-bold text-gray-500 uppercase tracking-widest cursor-pointer">Inclure</label>
+            data.sort((a, b) => b.year - a.year).forEach(item => {
+                const div = document.createElement('div');
+                div.className = "reference-card flex flex-col md:flex-row gap-6 items-start border-b border-gray-50 pb-8";
+                div.innerHTML = `
+                    <div class="w-full md:w-40 flex-shrink-0 pt-1">
+                        ${item.logo ? `<img src="${item.logo}" class="logo-img mb-2">` : `<div class="font-oswald text-xl text-gray-200">${item.client.charAt(0)}</div>`}
+                        <div class="text-[10px] font-bold text-[var(--dix-light-green)] font-oswald uppercase tracking-wider">${item.year}</div>
+                        <div class="text-[9px] text-gray-400 uppercase tracking-widest">${item.city} ${item.region ? `(${item.region})` : ''}</div>
                     </div>
-
-                    <!-- Colonne Infos GAUCHE (col-left) -->
-                    <div class="col-left w-full md:w-1/4 flex flex-col items-center md:items-start md:border-r border-gray-100 pr-0 md:pr-6">
-                        <div class="logo-box h-20 w-full flex items-center justify-center mb-4 bg-gray-50 rounded p-2">
-                            ${item.logo 
-                                ? `<img src="${item.logo}" class="max-h-full max-w-full object-contain" alt="Logo">`
-                                : `<div class="text-[var(--dix-dark)] opacity-10 font-oswald text-3xl">${(item.client || "D").charAt(0)}</div>`
-                            }
-                        </div>
-                        <div class="space-y-3 w-full text-center md:text-left">
-                            <div>
-                                <p class="text-[8px] uppercase text-gray-400 font-oswald tracking-widest mb-0.5">Période</p>
-                                <p class="text-xs font-bold">${item.year}</p>
-                            </div>
-                            <div>
-                                <p class="text-[8px] uppercase text-gray-400 font-oswald tracking-widest mb-0.5">Localisation</p>
-                                <p class="text-xs font-bold leading-tight">${item.city}<br><span class="text-[10px] font-normal text-gray-500">${item.region}</span></p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Colonne Texte DROITE (col-right) -->
-                    <div class="col-right flex-1">
-                        <div class="mb-3">
-                            <h4 class="text-[10px] font-bold text-gray-400 mb-0.5 tracking-tight uppercase">${item.client}</h4>
-                            <span class="inline-block px-1.5 py-0.5 bg-[var(--dix-grey)] text-[8px] font-bold text-[var(--dix-green)] rounded mb-2 tracking-widest uppercase font-oswald">${item.theme}</span>
-                            <h3 class="text-lg md:text-xl text-[var(--dix-dark)] leading-tight font-oswald">${item.title.toUpperCase()}</h3>
-                        </div>
-                        
-                        <div class="h-0.5 bg-[var(--dix-green)] w-10 mb-3"></div>
-                        
-                        <div class="desc-text text-gray-700 text-xs md:text-sm leading-snug italic whitespace-pre-line">
-                            ${item.desc}
-                        </div>
+                    <div class="flex-1">
+                        <h3 class="text-lg text-[var(--dix-dark-green)] leading-tight mb-1 font-medium">${item.title}</h3>
+                        <p class="text-xs font-bold text-gray-600 mb-3 font-oswald tracking-wide uppercase">${item.client}</p>
+                        <p class="text-sm text-gray-600 leading-relaxed italic">${item.desc}</p>
                     </div>
                 `;
-                grid.appendChild(card);
+                container.appendChild(div);
             });
-            lucide.createIcons();
-        }
-
-        function toggleRef(id) {
-            const card = document.getElementById(`card-${id}`);
-            if(card) {
-                card.classList.toggle('excluded');
-                if(card.classList.contains('excluded')) card.classList.add('no-print');
-                else card.classList.remove('no-print');
-            }
         }
     </script>
 </body>
