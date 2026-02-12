@@ -25,17 +25,16 @@
         .no-print { display: block; }
         .print-only { display: none; }
 
-        /* Style spécifique pour l'impression PDF */
         @media print {
             body { background-color: white; padding: 0; }
             .no-print { display: none !important; }
             .print-only { display: block !important; }
-            .page-break { page-break-after: always; }
             .reference-card { 
                 break-inside: avoid; 
                 border: 1px solid #eee !important; 
                 box-shadow: none !important;
-                margin-bottom: 2rem !important;
+                margin-bottom: 2cm !important;
+                page-break-inside: avoid;
             }
             @page { margin: 1.5cm; }
         }
@@ -47,7 +46,7 @@
 </head>
 <body class="min-h-screen">
 
-    <!-- INTERFACE DE SÉLECTION (Invisible à l'impression) -->
+    <!-- INTERFACE FIXE -->
     <div class="no-print sticky top-0 z-50 bg-white border-b shadow-md p-4">
         <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
             <div class="flex items-center gap-3">
@@ -56,124 +55,101 @@
             </div>
 
             <div class="flex flex-wrap gap-2 items-center">
-                <select id="themeFilter" class="p-2 border rounded-md text-xs uppercase tracking-widest outline-none bg-gray-50 border-gray-200">
+                <select id="themeFilter" class="p-2 border rounded-md text-[10px] uppercase tracking-widest outline-none bg-gray-50 border-gray-200">
                     <option value="">Toutes les thématiques</option>
                 </select>
                 
-                <button onclick="window.print()" class="bg-[var(--dix-light-green)] text-white px-4 py-2 rounded-md font-oswald flex items-center gap-2 hover:bg-[#46822e] transition-colors">
+                <button onclick="window.print()" class="bg-[var(--dix-light-green)] text-white px-5 py-2 rounded-md font-oswald flex items-center gap-2 hover:bg-[#46822e] transition-colors shadow-sm">
                     <i data-lucide="printer" class="w-4 h-4"></i> EXPORTER EN PDF
                 </button>
             </div>
         </div>
-        <div class="max-w-6xl mx-auto mt-2 text-[10px] text-gray-400 italic">
-            Sélectionnez les missions ci-dessous pour les inclure dans votre document.
-        </div>
     </div>
 
-    <!-- HEADER DU DOCUMENT (Visible uniquement au PDF) -->
-    <div class="print-only text-center mb-12 py-8 border-b-2 border-[var(--dix-light-green)]">
+    <!-- ENTÊTE PDF -->
+    <div class="print-only text-center mb-12 py-8 border-b-2 border-[var(--dix-light-green)] bg-white">
         <h1 class="text-4xl text-[var(--dix-dark-green)] mb-2 tracking-[0.2em]">RÉFÉRENCES PROFESSIONNELLES</h1>
         <p class="text-lg italic text-gray-500">D.I.X. Autrement — Conseil en systèmes alimentaires de proximité</p>
     </div>
 
-    <!-- LISTE DES RÉFÉRENCES -->
+    <!-- GRILLE DE RÉSULTATS -->
     <div class="max-w-6xl mx-auto p-4 md:p-8">
-        <div id="statusMessage" class="flex flex-col items-center justify-center py-20 text-center">
-            <div id="loaderIcon" class="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--dix-light-green)] mb-4"></div>
-            <p id="loaderText" class="font-oswald tracking-widest uppercase text-gray-400">Synchronisation des données...</p>
-            <p id="loaderHint" class="text-xs text-gray-400 mt-2 max-w-xs"></p>
+        <div id="loader" class="flex flex-col items-center justify-center py-24 text-center">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--dix-light-green)] mb-4"></div>
+            <p id="loaderText" class="font-oswald tracking-widest uppercase text-gray-400">Initialisation...</p>
         </div>
 
-        <div id="resultsGrid" class="grid grid-cols-1 gap-8">
-            <!-- Les fiches seront injectées ici -->
+        <div id="resultsGrid" class="grid grid-cols-1 gap-8 hidden">
+            <!-- Injecté par JS -->
         </div>
     </div>
 
-    <!-- FOOTER DU DOCUMENT (Visible uniquement au PDF) -->
+    <!-- PIED DE PAGE PDF -->
     <div class="print-only mt-12 pt-4 border-t text-[10px] text-center text-gray-400 font-oswald uppercase tracking-widest">
-        D.I.X. Autrement — www.dix-autrement.fr — Contact : contact@dix-autrement.fr
+        D.I.X. Autrement — www.dix-autrement.fr — contact@dix-autrement.fr
     </div>
 
     <script>
+        // Utilisation du même lien que le Dashboard
         const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSm_4bPCRFK_gGVkxP-ZeTHzLauhQtqNg_zG2chKNuY8-iyDAuHjc_CQbpBCU4LY9-GRi1579CsUkhr/pub?gid=917397259&single=true&output=csv";
         
+        // On utilise les INDEX fixes comme dans le Dashboard (plus fiable)
+        let COLS = {
+            ANNEE: 0, REGION: 1, LOGO: 2, CLIENT: 3, TYPE: 4, CATEGORIE: 5, TITRE: 6, DESC: 7, VILLE: 9
+        };
+
         let allData = [];
-        let COLS = {};
 
         window.onload = function() {
             lucide.createIcons();
             loadData();
         };
 
-        function updateStatus(text, hint = "", isError = false) {
-            document.getElementById('loaderText').textContent = text;
-            document.getElementById('loaderHint').textContent = hint;
-            if (isError) {
-                document.getElementById('loaderIcon').classList.remove('animate-spin');
-                document.getElementById('loaderText').classList.add('text-red-500');
-            }
-        }
-
         function cleanUrl(text) {
             if (!text) return null;
-            const match = text.trim().match(/["'](http[^"']+)["']/i);
-            return match ? match[1] : (text.startsWith('http') ? text.trim() : null);
+            let url = text.trim();
+            const match = url.match(/["'](http[^"']+)["']/i);
+            if (match) return match[1];
+            if (url.startsWith('http')) return url;
+            return null;
         }
 
         function loadData() {
-            updateStatus("Lecture du Google Sheet...", "Connexion en cours");
-            
             Papa.parse(CSV_URL, {
                 download: true,
                 header: false,
                 skipEmptyLines: true,
                 complete: function(results) {
                     if (!results.data || results.data.length < 2) {
-                        updateStatus("Erreur : Fichier vide", "Vérifiez la publication de votre onglet.", true);
+                        document.getElementById('loaderText').textContent = "Erreur : Données introuvables.";
                         return;
                     }
 
-                    const header = results.data[0];
+                    // On saute la première ligne d'entêtes
                     const rows = results.data.slice(1);
                     
-                    // Détection intelligente des colonnes
-                    const findCol = (names) => header.findIndex(h => names.some(n => h.toLowerCase().includes(n.toLowerCase())));
-                    
-                    COLS = {
-                        ANNEE: findCol(['année', 'annee', 'year']),
-                        REGION: findCol(['région', 'region']),
-                        LOGO: findCol(['logo']),
-                        CLIENT: findCol(['client', 'commanditaire']),
-                        CATEGORIE: findCol(['catégorie', 'categorie', 'thématique', 'thematique']),
-                        TITRE: findCol(['intitulé', 'intitule', 'titre', 'mission']),
-                        DESC: findCol(['descriptif', 'description']),
-                        VILLE: findCol(['ville', 'city'])
-                    };
-
-                    allData = rows.map((row, index) => ({
-                        id: index,
-                        year: row[COLS.ANNEE] || "",
-                        region: row[COLS.REGION] || "",
-                        logo: cleanUrl(row[COLS.LOGO]),
-                        client: row[COLS.CLIENT] || "Client",
-                        category: row[COLS.CATEGORIE] || "AUTRE",
-                        title: row[COLS.TITRE] || "Sans titre",
-                        desc: row[COLS.DESC] || "",
-                        city: row[COLS.VILLE] || ""
-                    })).filter(item => item.title !== "Sans titre" && item.title !== "");
-
-                    if (allData.length === 0) {
-                        updateStatus("Erreur : Aucune donnée", "Les colonnes n'ont pas été reconnues ou le tableau est vide.", true);
-                        return;
-                    }
+                    allData = rows.map((row, index) => {
+                        return {
+                            id: index,
+                            year: row[COLS.ANNEE] || "",
+                            region: row[COLS.REGION] || "",
+                            logo: cleanUrl(row[COLS.LOGO]),
+                            client: row[COLS.CLIENT] || "Client",
+                            category: row[COLS.CATEGORIE] || "AUTRE",
+                            title: row[COLS.TITRE] || "",
+                            desc: row[COLS.DESC] || "",
+                            city: row[COLS.VILLE] || ""
+                        };
+                    }).filter(item => item.title !== "");
 
                     renderFilters();
                     render(allData);
-                    document.getElementById('statusMessage').classList.add('hidden');
+                    
+                    document.getElementById('loader').classList.add('hidden');
+                    document.getElementById('resultsGrid').classList.remove('hidden');
                 },
-                error: function(err) {
-                    updateStatus("Erreur de synchronisation", "Si vous testez en local, essayez de mettre le fichier sur GitHub.", true);
-                    console.error(err);
+                error: function() {
+                    document.getElementById('loaderText').textContent = "Erreur de connexion au CSV.";
                 }
             });
         }
@@ -198,45 +174,46 @@
 
             data.forEach(item => {
                 const container = document.createElement('div');
-                container.className = "relative group-ref";
+                container.className = "group-ref";
                 
                 container.innerHTML = `
-                    <div class="reference-card bg-white p-8 shadow-sm rounded-lg border border-gray-100 flex flex-col md:flex-row gap-8 relative overflow-hidden transition-all hover:shadow-md">
-                        <!-- Sélection manuelle (No Print) -->
-                        <div class="no-print absolute top-2 right-2 flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-full border">
+                    <div class="reference-card bg-white p-8 shadow-sm rounded-lg border border-gray-100 flex flex-col md:flex-row gap-10 relative overflow-hidden">
+                        
+                        <!-- CHECKBOX INCLUSION (NO PRINT) -->
+                        <div class="no-print absolute top-3 right-3 flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200">
                              <input type="checkbox" checked onchange="toggleCard(this)" class="w-4 h-4 cursor-pointer accent-[var(--dix-light-green)]">
-                             <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest cursor-pointer">Inclure</label>
+                             <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest cursor-pointer">Inclure dans le PDF</label>
                         </div>
 
-                        <!-- Colonne Gauche : Logo et Infos -->
-                        <div class="w-full md:w-1/4 flex flex-col items-center md:items-start text-center md:text-left border-b md:border-b-0 md:border-r border-gray-100 pb-4 md:pb-0">
-                            <div class="h-24 w-full flex items-center justify-center mb-6">
+                        <!-- COLONNE GAUCHE -->
+                        <div class="w-full md:w-1/4 flex flex-col items-center md:items-start text-center md:text-left md:border-r border-gray-100 pr-0 md:pr-10">
+                            <div class="h-28 w-full flex items-center justify-center mb-8">
                                 ${item.logo 
-                                    ? `<img src="${item.logo}" class="max-h-20 max-w-full object-contain" alt="Logo ${item.client}">`
-                                    : `<div class="text-[var(--dix-dark-green)] opacity-10 font-oswald text-5xl">${(item.client || "D").charAt(0)}</div>`
+                                    ? `<img src="${item.logo}" class="max-h-24 max-w-full object-contain" alt="Logo">`
+                                    : `<div class="text-[var(--dix-dark-green)] opacity-10 font-oswald text-5xl">${item.client.charAt(0)}</div>`
                                 }
                             </div>
-                            <div class="space-y-4 w-full">
+                            <div class="space-y-5 w-full">
                                 <div>
-                                    <p class="text-[9px] uppercase font-bold text-gray-400 tracking-widest mb-1">Période</p>
+                                    <p class="text-[10px] uppercase font-bold text-gray-300 tracking-[0.2em] mb-1.5">Période</p>
                                     <p class="text-sm font-bold text-[var(--dix-dark-green)]">${item.year}</p>
                                 </div>
                                 <div>
-                                    <p class="text-[9px] uppercase font-bold text-gray-400 tracking-widest mb-1">Localisation</p>
+                                    <p class="text-[10px] uppercase font-bold text-gray-300 tracking-[0.2em] mb-1.5">Localisation</p>
                                     <p class="text-sm font-bold">${item.city}<br><span class="text-xs font-normal text-gray-500">${item.region}</span></p>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Colonne Droite : Contenu -->
+                        <!-- COLONNE DROITE -->
                         <div class="flex-1">
-                            <div class="mb-4">
-                                <span class="inline-block px-2 py-0.5 bg-[var(--dix-white-grey)] text-[9px] font-bold text-[var(--dix-light-green)] rounded mb-2 uppercase tracking-widest">${item.category}</span>
-                                <h3 class="text-xl text-[var(--dix-dark-green)] leading-tight mb-2 font-oswald">${item.title.toUpperCase()}</h3>
-                                <p class="text-sm font-bold text-gray-600 mb-4">${item.client.toUpperCase()}</p>
+                            <div class="mb-6">
+                                <span class="inline-block px-2.5 py-1 bg-[var(--dix-white-grey)] text-[10px] font-bold text-[var(--dix-light-green)] rounded mb-3 uppercase tracking-widest">${item.category}</span>
+                                <h3 class="text-2xl text-[var(--dix-dark-green)] leading-tight mb-2 font-oswald">${item.title.toUpperCase()}</h3>
+                                <p class="text-md font-bold text-gray-500">${item.client.toUpperCase()}</p>
                             </div>
                             
-                            <div class="h-0.5 bg-[var(--dix-light-green)] w-12 mb-4"></div>
+                            <div class="h-1 bg-[var(--dix-light-green)] w-16 mb-6"></div>
                             
                             <div class="text-gray-700 text-sm leading-relaxed italic whitespace-pre-line">
                                 ${item.desc}
