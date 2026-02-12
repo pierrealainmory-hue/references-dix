@@ -25,8 +25,6 @@
         }
 
         /* --- STYLES IMPRESSION & GÉNÉRATION IMAGE --- */
-        /* On duplique les règles d'impression dans une classe .generating-image pour html2canvas */
-        
         @media print {
             @page { margin: 1cm; size: A4; }
             .no-print { display: none !important; }
@@ -121,7 +119,8 @@
         <!-- HEADER DOCUMENT AVEC LOGO -->
         <div class="border-b-4 border-[var(--dix-dark-green)] pb-4 mb-6 flex justify-between items-end">
             <div class="w-1/3">
-                <img src="logo.png" onerror="this.src='https://placehold.co/200x80/white/405F59?text=LOGO+D.I.X.'" alt="Logo D.I.X." class="h-16 object-contain">
+                <!-- ID ajouté pour le script de conversion Base64 -->
+                <img id="mainLogo" src="logo.png" onerror="this.src='https://placehold.co/200x80/white/405F59?text=LOGO+D.I.X.'" alt="Logo D.I.X." class="h-16 object-contain" crossOrigin="anonymous">
             </div>
             <div class="w-2/3 text-right">
                 <h2 id="docTitle" class="text-3xl md:text-4xl text-[var(--dix-dark-green)] font-oswald tracking-tighter">Nos Références</h2>
@@ -161,22 +160,41 @@
         window.onload = () => {
             if (window.lucide) lucide.createIcons();
             document.getElementById('currentDate').textContent = new Date().toLocaleDateString('fr-FR', {year: 'numeric', month: 'long', day: 'numeric'});
+            
+            // Tentative de conversion du logo principal en Base64 pour éviter les problèmes CORS en local
+            convertLogoToBase64();
+            
             loadData();
         };
+
+        // Convertit le logo local en Base64 pour l'export image
+        function convertLogoToBase64() {
+            const img = document.getElementById('mainLogo');
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const tempImg = new Image();
+            tempImg.crossOrigin = "Anonymous";
+            tempImg.src = img.src;
+            tempImg.onload = () => {
+                canvas.width = tempImg.width;
+                canvas.height = tempImg.height;
+                ctx.drawImage(tempImg, 0, 0);
+                try {
+                    img.src = canvas.toDataURL('image/png');
+                } catch(e) { console.warn("Impossible de convertir le logo principal (CORS)"); }
+            };
+        }
 
         function generateImage() {
             const element = document.getElementById('exportArea');
             const footer = document.getElementById('printFooter');
             
-            // 1. Préparer le mode "Image" (identique au mode Print)
             document.body.classList.add('generating-image');
             
-            // 2. Cloner et ajouter le footer en bas de la zone d'export
-            // (Car en mode image, on veut le footer à la fin du contenu, pas en fixed)
             const footerClone = footer.cloneNode(true);
             footerClone.id = "temp-footer";
             footerClone.classList.remove('hidden');
-            footerClone.style.position = 'static'; // Pas fixe pour l'image
+            footerClone.style.position = 'static'; 
             footerClone.style.marginTop = '2rem';
             footerClone.style.borderTop = '2px solid var(--dix-dark-green)';
             footerClone.style.paddingTop = '10px';
@@ -184,28 +202,26 @@
             
             element.appendChild(footerClone);
 
-            // 3. Capturer avec html2canvas en haute qualité
             html2canvas(element, {
-                scale: 2, // Facteur d'échelle pour la HD (Retina)
-                useCORS: true, // Pour charger les images externes/locales
+                scale: 2,
+                useCORS: true, // Indispensable pour les images
+                allowTaint: true,
                 backgroundColor: "#ffffff",
-                windowWidth: 210 * 3.78, // Largeur A4 approx en pixels
+                windowWidth: 210 * 3.78,
                 onclone: (clonedDoc) => {
-                    // Petits ajustements sur le clone si nécessaire
+                   // Permet de s'assurer que le rendu est propre
                 }
             }).then(canvas => {
-                // 4. Nettoyage
                 document.body.classList.remove('generating-image');
                 element.removeChild(footerClone);
                 
-                // 5. Téléchargement
                 const link = document.createElement('a');
                 link.download = `References_DIX_${new Date().toISOString().slice(0,10)}.png`;
                 link.href = canvas.toDataURL('image/png');
                 link.click();
             }).catch(err => {
                 console.error("Erreur génération image:", err);
-                alert("Une erreur est survenue lors de la génération de l'image.");
+                alert("Erreur lors de la génération. Vérifiez que les images sont accessibles.");
                 document.body.classList.remove('generating-image');
                 if(document.getElementById('temp-footer')) element.removeChild(footerClone);
             });
@@ -297,6 +313,9 @@
 
                 const formattedDesc = formatDescription(item.desc);
 
+                // ASTUCE : Utilisation de wsrv.nl pour proxyfier les images et forcer les headers CORS
+                const logoSrc = item.logo ? `https://wsrv.nl/?url=${encodeURIComponent(item.logo)}` : null;
+
                 div.innerHTML = `
                     <div class="ref-left-col w-full md:w-56 flex-shrink-0 p-5 bg-gray-50 flex flex-col justify-center items-center md:items-center text-center relative border-r border-gray-100 print-hidden-bg">
                         <div class="no-print absolute top-3 left-3">
@@ -306,7 +325,7 @@
                         </div>
                         
                         <div class="mb-3 flex items-center justify-center min-h-[60px]">
-                            ${item.logo ? `<img src="${item.logo}" class="logo-img">` : `<div class="font-oswald text-4xl text-gray-200">${item.client.charAt(0)}</div>`}
+                            ${logoSrc ? `<img src="${logoSrc}" class="logo-img" crossOrigin="anonymous">` : `<div class="font-oswald text-4xl text-gray-200">${item.client.charAt(0)}</div>`}
                         </div>
                         
                         <div class="client-name text-[11px] font-bold text-[var(--dix-dark-green)] font-oswald uppercase tracking-wider leading-tight mb-2 max-w-full px-2">${item.client}</div>
