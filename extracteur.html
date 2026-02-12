@@ -37,11 +37,12 @@
                 box-shadow: none !important;
                 margin-bottom: 2rem !important;
             }
-            @page { margin: 2cm; }
+            @page { margin: 1.5cm; }
         }
 
         .reference-card { transition: all 0.2s ease; border-top: 4px solid var(--dix-dark-green); }
-        .checkbox-custom:checked + label { border-color: var(--dix-light-green); background-color: rgba(84, 158, 57, 0.05); }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: var(--dix-light-green); border-radius: 10px; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -77,9 +78,10 @@
 
     <!-- LISTE DES RÉFÉRENCES -->
     <div class="max-w-6xl mx-auto p-4 md:p-8">
-        <div id="loader" class="flex flex-col items-center justify-center py-20">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--dix-light-green)] mb-4"></div>
-            <p class="font-oswald tracking-widest uppercase text-gray-400">Synchronisation des données...</p>
+        <div id="statusMessage" class="flex flex-col items-center justify-center py-20 text-center">
+            <div id="loaderIcon" class="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--dix-light-green)] mb-4"></div>
+            <p id="loaderText" class="font-oswald tracking-widest uppercase text-gray-400">Synchronisation des données...</p>
+            <p id="loaderHint" class="text-xs text-gray-400 mt-2 max-w-xs"></p>
         </div>
 
         <div id="resultsGrid" class="grid grid-cols-1 gap-8">
@@ -96,11 +98,21 @@
         const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSm_4bPCRFK_gGVkxP-ZeTHzLauhQtqNg_zG2chKNuY8-iyDAuHjc_CQbpBCU4LY9-GRi1579CsUkhr/pub?gid=917397259&single=true&output=csv";
         
         let allData = [];
+        let COLS = {};
 
         window.onload = function() {
             lucide.createIcons();
             loadData();
         };
+
+        function updateStatus(text, hint = "", isError = false) {
+            document.getElementById('loaderText').textContent = text;
+            document.getElementById('loaderHint').textContent = hint;
+            if (isError) {
+                document.getElementById('loaderIcon').classList.remove('animate-spin');
+                document.getElementById('loaderText').classList.add('text-red-500');
+            }
+        }
 
         function cleanUrl(text) {
             if (!text) return null;
@@ -109,26 +121,59 @@
         }
 
         function loadData() {
+            updateStatus("Lecture du Google Sheet...", "Connexion en cours");
+            
             Papa.parse(CSV_URL, {
                 download: true,
-                header: true,
+                header: false,
                 skipEmptyLines: true,
                 complete: function(results) {
-                    allData = results.data.map((row, index) => ({
+                    if (!results.data || results.data.length < 2) {
+                        updateStatus("Erreur : Fichier vide", "Vérifiez la publication de votre onglet.", true);
+                        return;
+                    }
+
+                    const header = results.data[0];
+                    const rows = results.data.slice(1);
+                    
+                    // Détection intelligente des colonnes
+                    const findCol = (names) => header.findIndex(h => names.some(n => h.toLowerCase().includes(n.toLowerCase())));
+                    
+                    COLS = {
+                        ANNEE: findCol(['année', 'annee', 'year']),
+                        REGION: findCol(['région', 'region']),
+                        LOGO: findCol(['logo']),
+                        CLIENT: findCol(['client', 'commanditaire']),
+                        CATEGORIE: findCol(['catégorie', 'categorie', 'thématique', 'thematique']),
+                        TITRE: findCol(['intitulé', 'intitule', 'titre', 'mission']),
+                        DESC: findCol(['descriptif', 'description']),
+                        VILLE: findCol(['ville', 'city'])
+                    };
+
+                    allData = rows.map((row, index) => ({
                         id: index,
-                        year: row["Année"] || "",
-                        region: row["Région"] || "",
-                        logo: cleanUrl(row["LOGOS"]),
-                        client: row["Commanditaire"] || "Client",
-                        category: row["Thématique"] || "AUTRE",
-                        title: row["Intitulé de la mission"] || "Sans titre",
-                        desc: row["Descriptif de la mission"] || "",
-                        city: row["Ville"] || ""
-                    })).filter(item => item.title !== "Sans titre");
+                        year: row[COLS.ANNEE] || "",
+                        region: row[COLS.REGION] || "",
+                        logo: cleanUrl(row[COLS.LOGO]),
+                        client: row[COLS.CLIENT] || "Client",
+                        category: row[COLS.CATEGORIE] || "AUTRE",
+                        title: row[COLS.TITRE] || "Sans titre",
+                        desc: row[COLS.DESC] || "",
+                        city: row[COLS.VILLE] || ""
+                    })).filter(item => item.title !== "Sans titre" && item.title !== "");
+
+                    if (allData.length === 0) {
+                        updateStatus("Erreur : Aucune donnée", "Les colonnes n'ont pas été reconnues ou le tableau est vide.", true);
+                        return;
+                    }
 
                     renderFilters();
                     render(allData);
-                    document.getElementById('loader').classList.add('hidden');
+                    document.getElementById('statusMessage').classList.add('hidden');
+                },
+                error: function(err) {
+                    updateStatus("Erreur de synchronisation", "Si vous testez en local, essayez de mettre le fichier sur GitHub.", true);
+                    console.error(err);
                 }
             });
         }
@@ -153,26 +198,22 @@
 
             data.forEach(item => {
                 const container = document.createElement('div');
-                container.className = "relative group";
+                container.className = "relative group-ref";
                 
-                // On utilise un système de checkbox pour la sélection "no-print"
                 container.innerHTML = `
-                    <input type="checkbox" checked id="check-${item.id}" class="no-print checkbox-custom absolute top-4 left-[-40px] w-6 h-6 cursor-pointer accent-[var(--dix-light-green)] hidden">
-                    
                     <div class="reference-card bg-white p-8 shadow-sm rounded-lg border border-gray-100 flex flex-col md:flex-row gap-8 relative overflow-hidden transition-all hover:shadow-md">
-                        <!-- Sélection manuelle pour l'utilisateur -->
-                        <div class="no-print absolute top-0 right-0 p-2">
-                             <label class="flex items-center gap-2 text-[10px] font-bold text-gray-300 cursor-pointer">
-                                <input type="checkbox" checked onchange="toggleCard(this)" class="w-4 h-4"> INCLURE
-                             </label>
+                        <!-- Sélection manuelle (No Print) -->
+                        <div class="no-print absolute top-2 right-2 flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-full border">
+                             <input type="checkbox" checked onchange="toggleCard(this)" class="w-4 h-4 cursor-pointer accent-[var(--dix-light-green)]">
+                             <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest cursor-pointer">Inclure</label>
                         </div>
 
-                        <!-- Colonne Gauche : Logo et Meta -->
+                        <!-- Colonne Gauche : Logo et Infos -->
                         <div class="w-full md:w-1/4 flex flex-col items-center md:items-start text-center md:text-left border-b md:border-b-0 md:border-r border-gray-100 pb-4 md:pb-0">
                             <div class="h-24 w-full flex items-center justify-center mb-6">
                                 ${item.logo 
                                     ? `<img src="${item.logo}" class="max-h-20 max-w-full object-contain" alt="Logo ${item.client}">`
-                                    : `<div class="text-[var(--dix-dark-green)] opacity-20 font-oswald text-4xl">${item.client.charAt(0)}</div>`
+                                    : `<div class="text-[var(--dix-dark-green)] opacity-10 font-oswald text-5xl">${(item.client || "D").charAt(0)}</div>`
                                 }
                             </div>
                             <div class="space-y-4 w-full">
@@ -182,7 +223,7 @@
                                 </div>
                                 <div>
                                     <p class="text-[9px] uppercase font-bold text-gray-400 tracking-widest mb-1">Localisation</p>
-                                    <p class="text-sm">${item.city}<br><span class="text-xs text-gray-500">${item.region}</span></p>
+                                    <p class="text-sm font-bold">${item.city}<br><span class="text-xs font-normal text-gray-500">${item.region}</span></p>
                                 </div>
                             </div>
                         </div>
@@ -190,9 +231,9 @@
                         <!-- Colonne Droite : Contenu -->
                         <div class="flex-1">
                             <div class="mb-4">
-                                <span class="inline-block px-2 py-0.5 bg-[var(--dix-white-grey)] text-[10px] font-bold text-[var(--dix-light-green)] rounded mb-2 uppercase tracking-widest">${item.category}</span>
-                                <h3 class="text-xl md:text-2xl text-[var(--dix-dark-green)] leading-tight mb-2 font-oswald">${item.title.toUpperCase()}</h3>
-                                <p class="text-md font-bold text-gray-600 mb-4">${item.client.toUpperCase()}</p>
+                                <span class="inline-block px-2 py-0.5 bg-[var(--dix-white-grey)] text-[9px] font-bold text-[var(--dix-light-green)] rounded mb-2 uppercase tracking-widest">${item.category}</span>
+                                <h3 class="text-xl text-[var(--dix-dark-green)] leading-tight mb-2 font-oswald">${item.title.toUpperCase()}</h3>
+                                <p class="text-sm font-bold text-gray-600 mb-4">${item.client.toUpperCase()}</p>
                             </div>
                             
                             <div class="h-0.5 bg-[var(--dix-light-green)] w-12 mb-4"></div>
@@ -208,15 +249,14 @@
             lucide.createIcons();
         }
 
-        // Fonction pour cacher/montrer une carte lors de l'impression
         function toggleCard(checkbox) {
-            const card = checkbox.closest('.group');
+            const container = checkbox.closest('.group-ref');
             if (checkbox.checked) {
-                card.classList.remove('no-print');
-                card.style.opacity = "1";
+                container.classList.remove('no-print');
+                container.style.opacity = "1";
             } else {
-                card.classList.add('no-print');
-                card.style.opacity = "0.4";
+                container.classList.add('no-print');
+                container.style.opacity = "0.3";
             }
         }
     </script>
