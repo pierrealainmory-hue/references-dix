@@ -33,16 +33,18 @@
                 bottom: 0;
                 left: 0;
                 right: 0;
-                height: 1.2cm;
+                height: 1cm; /* Hauteur ajustée */
                 display: flex !important;
-                justify-content: space-between;
+                justify-content: center; /* Centré */
                 align-items: center;
                 border-top: 2px solid var(--dix-dark-green);
                 background: white;
-                font-size: 8pt;
+                font-size: 7pt; /* Police légèrement réduite pour tenir sur une ligne */
                 padding-top: 5px;
                 color: #666;
-                z-index: 1000; /* Assure que le footer est au-dessus */
+                z-index: 1000;
+                text-align: center;
+                width: 100%;
             }
 
             /* Conteneur principal de la carte en mode ligne forcé */
@@ -161,8 +163,8 @@
         <div class="border-b-4 border-[var(--dix-dark-green)] pb-4 mb-6 flex justify-between items-end">
             <!-- Emplacement Logo D.I.X. -->
             <div class="w-1/3">
-                <!-- Remplacer l'URL ci-dessous par l'URL de votre logo -->
-                <img src="https://placehold.co/200x80/white/405F59?text=LOGO+D.I.X." alt="Logo D.I.X." class="h-16 object-contain">
+                <!-- IMPORTANT : Placez une image nommée 'logo.png' au même endroit que ce fichier HTML -->
+                <img src="logo.png" onerror="this.src='https://placehold.co/200x80/white/405F59?text=LOGO+MANQUANT'" alt="Logo D.I.X." class="h-16 object-contain">
             </div>
             
             <div class="w-2/3 text-right">
@@ -188,9 +190,9 @@
 
     <!-- PIED DE PAGE IMPRESSION (Hors Main, Directement dans Body) -->
     <div id="printFooter" class="hidden">
-        <div class="font-oswald text-[var(--dix-dark-green)] uppercase tracking-widest">D.I.X. AUTREMENT</div>
-        <div class="italic text-center flex-1 px-4">Modélisation & Évaluation de circuits de proximité</div>
-        <div class="font-oswald">WWW.DIX-AUTREMENT.FR</div>
+        <div class="w-full text-center tracking-wider font-oswald">
+            D.I.X. La distribution autrement sas — au capital social de 500€ — SIRET: 83093771000028 • RCS: 830937710 • TVA Intra: FR54830937710 — www.dix-autrement.fr
+        </div>
     </div>
 
     <script>
