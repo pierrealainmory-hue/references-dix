@@ -20,21 +20,40 @@
 
         /* Styles Impression - Optimisés pour la compacité */
         @media print {
-            @page { margin: 1cm 1.5cm; size: A4; }
+            /* Marges réduites pour maximiser l'espace */
+            @page { margin: 0.8cm 1cm; size: A4; }
+            
             .no-print { display: none !important; }
-            body { background-color: white; padding: 0; font-size: 10pt; }
+            body { background-color: white; padding: 0; font-size: 10pt; margin-bottom: 2cm; } /* Marge bas pour le footer */
             #exportArea { box-shadow: none; border: none; width: 100%; max-width: 100%; margin: 0; padding: 0; }
             
+            /* PIED DE PAGE FIXE SUR CHAQUE PAGE */
+            #printFooter {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 1cm;
+                display: flex !important;
+                justify-content: space-between;
+                align-items: center;
+                border-top: 2px solid var(--dix-dark-green);
+                background: white;
+                font-size: 8pt;
+                padding-top: 5px;
+                color: #666;
+            }
+
             /* Conteneur principal de la carte en mode ligne forcé */
             .reference-card { 
                 display: flex !important; 
                 flex-direction: row !important; /* Force l'horizontal */
                 align-items: flex-start !important;
                 break-inside: avoid; 
-                margin-bottom: 0 !important;
-                padding-bottom: 0.8rem !important;
-                padding-top: 0.8rem !important;
-                border-bottom: 1px solid #ccc !important;
+                margin-bottom: 0.5cm !important;
+                padding-bottom: 0.5cm !important;
+                padding-top: 0.5cm !important;
+                border-bottom: 1px solid #000 !important; /* Séparateur visuel noir */
                 background-color: transparent !important;
             }
             
@@ -42,14 +61,14 @@
 
             /* Colonne Gauche (Méta) */
             .ref-left-col {
-                width: 22% !important; /* Largeur fixe pour la colonne de gauche */
+                width: 22% !important; 
                 padding: 0 10px 0 0 !important;
                 background-color: transparent !important;
                 border-right: 1px solid #eee !important;
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: center !important;
-                text-align: right !important; /* Alignement droit pour coller au séparateur */
+                text-align: right !important; 
             }
 
             /* Colonne Droite (Contenu) */
@@ -137,15 +156,18 @@
     <!-- PAGE DOCUMENT -->
     <main id="exportArea" class="max-w-5xl mx-auto bg-white p-8 md:p-12 shadow-2xl rounded-sm min-h-[29.7cm] relative z-10">
         
-        <!-- HEADER DOCUMENT -->
-        <div class="border-b-4 border-[var(--dix-dark-green)] pb-4 mb-6 flex justify-between items-start">
-            <div>
+        <!-- HEADER DOCUMENT AVEC LOGO -->
+        <div class="border-b-4 border-[var(--dix-dark-green)] pb-4 mb-6 flex justify-between items-end">
+            <!-- Emplacement Logo D.I.X. -->
+            <div class="w-1/3">
+                <!-- Remplacer l'URL ci-dessous par l'URL de votre logo -->
+                <img src="https://placehold.co/200x80/white/405F59?text=LOGO+D.I.X." alt="Logo D.I.X." class="h-16 object-contain">
+            </div>
+            
+            <div class="w-2/3 text-right">
                 <h2 id="docTitle" class="text-3xl md:text-4xl text-[var(--dix-dark-green)] font-oswald tracking-tighter">Nos Références</h2>
                 <div id="docSubtitle" class="text-[var(--dix-light-green)] font-oswald text-lg tracking-[0.2em] mt-1">SÉLECTION PERSONNALISÉE</div>
-            </div>
-            <div class="text-right">
-                <div class="font-oswald text-xl tracking-widest text-gray-300">D.I.X. AUTREMENT</div>
-                <div class="text-[10px] text-gray-400 uppercase tracking-widest mt-2 italic">Dossier de références — <span id="currentDate"></span></div>
+                <div class="text-[10px] text-gray-400 uppercase tracking-widest mt-2 italic">Dossier généré le <span id="currentDate"></span></div>
             </div>
         </div>
 
@@ -157,11 +179,17 @@
             </div>
         </div>
 
-        <!-- FOOTER DOCUMENT -->
-        <footer class="mt-8 pt-4 border-t border-gray-100 text-[9px] text-gray-400 text-center flex justify-between items-center opacity-70">
+        <!-- FOOTER ECRAN (Simple) -->
+        <footer class="no-print mt-8 pt-4 border-t border-gray-100 text-[9px] text-gray-400 text-center opacity-70">
             <span class="uppercase tracking-widest italic">D.I.X. Autrement — Modélisation & Évaluation de circuits de proximité</span>
-            <span class="font-oswald">WWW.DIX-AUTREMENT.FR</span>
         </footer>
+
+        <!-- PIED DE PAGE IMPRESSION (Fixe sur toutes les pages) -->
+        <div id="printFooter" class="hidden">
+            <div class="font-oswald text-[var(--dix-dark-green)] uppercase tracking-widest">D.I.X. AUTREMENT</div>
+            <div class="italic text-center flex-1 px-4">Modélisation & Évaluation de circuits de proximité</div>
+            <div class="font-oswald">WWW.DIX-AUTREMENT.FR</div>
+        </div>
     </main>
 
     <script>
