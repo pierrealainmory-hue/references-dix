@@ -26,7 +26,7 @@
         .print-only { display: none; }
 
         @media print {
-            body { background-color: white; padding: 0; }
+            body { background-color: white; padding: 0 !important; margin: 0 !important; }
             .no-print { display: none !important; }
             .print-only { display: block !important; }
             .reference-card { 
@@ -42,12 +42,14 @@
         .reference-card { transition: all 0.2s ease; border-top: 4px solid var(--dix-dark-green); }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: var(--dix-light-green); border-radius: 10px; }
+        
+        .excluded { opacity: 0.3; filter: grayscale(1); }
     </style>
 </head>
 <body class="min-h-screen">
 
     <!-- INTERFACE FIXE -->
-    <div class="no-print sticky top-0 z-50 bg-white border-b shadow-md p-4">
+    <div id="ui-header" class="no-print sticky top-0 z-50 bg-white border-b shadow-md p-4">
         <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 bg-[var(--dix-dark-green)] rounded-full flex items-center justify-center text-white font-oswald text-lg">D</div>
@@ -75,8 +77,12 @@
     <!-- GRILLE DE RÉSULTATS -->
     <div class="max-w-6xl mx-auto p-4 md:p-8">
         <div id="loader" class="flex flex-col items-center justify-center py-24 text-center">
-            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--dix-light-green)] mb-4"></div>
-            <p id="loaderText" class="font-oswald tracking-widest uppercase text-gray-400">Initialisation...</p>
+            <div id="loaderIcon" class="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--dix-light-green)] mb-4"></div>
+            <p id="loaderText" class="font-oswald tracking-widest uppercase text-gray-400 text-sm">Synchronisation des données...</p>
+            <div id="errorMessage" class="hidden mt-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm max-w-md">
+                <p id="errorTitle" class="font-bold mb-1"></p>
+                <p id="errorDesc"></p>
+            </div>
         </div>
 
         <div id="resultsGrid" class="grid grid-cols-1 gap-8 hidden">
@@ -90,18 +96,18 @@
     </div>
 
     <script>
-        // Utilisation du même lien que le Dashboard
         const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSm_4bPCRFK_gGVkxP-ZeTHzLauhQtqNg_zG2chKNuY8-iyDAuHjc_CQbpBCU4LY9-GRi1579CsUkhr/pub?gid=917397259&single=true&output=csv";
         
-        // On utilise les INDEX fixes comme dans le Dashboard (plus fiable)
-        let COLS = {
-            ANNEE: 0, REGION: 1, LOGO: 2, CLIENT: 3, TYPE: 4, CATEGORIE: 5, TITRE: 6, DESC: 7, VILLE: 9
-        };
-
         let allData = [];
 
         window.onload = function() {
             lucide.createIcons();
+            
+            // Vérification si test en local
+            if (window.location.protocol === 'file:') {
+                showError("Test en local détecté", "Les navigateurs bloquent souvent la lecture de Google Sheets en local. Pour que cela fonctionne, déposez ce fichier sur GitHub ou utilisez un serveur local.");
+            }
+            
             loadData();
         };
 
@@ -114,42 +120,79 @@
             return null;
         }
 
+        function showError(title, desc) {
+            document.getElementById('loaderIcon').style.display = 'none';
+            document.getElementById('loaderText').style.display = 'none';
+            document.getElementById('errorMessage').classList.remove('hidden');
+            document.getElementById('errorTitle').textContent = title;
+            document.getElementById('errorDesc').textContent = desc;
+        }
+
         function loadData() {
             Papa.parse(CSV_URL, {
                 download: true,
                 header: false,
                 skipEmptyLines: true,
                 complete: function(results) {
-                    if (!results.data || results.data.length < 2) {
-                        document.getElementById('loaderText').textContent = "Erreur : Données introuvables.";
-                        return;
-                    }
+                    try {
+                        if (!results.data || results.data.length < 2) {
+                            showError("Données introuvables", "Le fichier CSV semble vide ou le lien n'est pas publié correctement.");
+                            return;
+                        }
 
-                    // On saute la première ligne d'entêtes
-                    const rows = results.data.slice(1);
-                    
-                    allData = rows.map((row, index) => {
-                        return {
-                            id: index,
-                            year: row[COLS.ANNEE] || "",
-                            region: row[COLS.REGION] || "",
-                            logo: cleanUrl(row[COLS.LOGO]),
-                            client: row[COLS.CLIENT] || "Client",
-                            category: row[COLS.CATEGORIE] || "AUTRE",
-                            title: row[COLS.TITRE] || "",
-                            desc: row[COLS.DESC] || "",
-                            city: row[COLS.VILLE] || ""
+                        const header = results.data[0];
+                        const rows = results.data.slice(1);
+
+                        // Détection des colonnes par mots-clés (plus robuste)
+                        const find = (keywords) => {
+                            const found = header.findIndex(h => keywords.some(k => 
+                                String(h).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(k)
+                            ));
+                            return found;
                         };
-                    }).filter(item => item.title !== "");
 
-                    renderFilters();
-                    render(allData);
-                    
-                    document.getElementById('loader').classList.add('hidden');
-                    document.getElementById('resultsGrid').classList.remove('hidden');
+                        const idx = {
+                            annee: find(['annee', 'year']),
+                            region: find(['region']),
+                            logo: find(['logo']),
+                            client: find(['commanditaire', 'client']),
+                            cat: find(['categorie', 'thematique']),
+                            titre: find(['intitule', 'titre']),
+                            desc: find(['descriptif', 'description']),
+                            ville: find(['ville', 'city'])
+                        };
+
+                        // Vérification minimale
+                        if (idx.titre === -1) {
+                            showError("Colonnes non reconnues", "Le script n'a pas trouvé la colonne 'Intitulé' ou 'Titre'. Vérifiez les entêtes de votre tableau.");
+                            return;
+                        }
+
+                        allData = rows.map((row, i) => {
+                            return {
+                                id: i,
+                                year: row[idx.annee] || "",
+                                region: row[idx.region] || "",
+                                logo: cleanUrl(row[idx.logo]),
+                                client: row[idx.client] || "Client",
+                                category: row[idx.cat] || "AUTRE",
+                                title: row[idx.titre] || "",
+                                desc: row[idx.desc] || "",
+                                city: row[idx.ville] || ""
+                            };
+                        }).filter(item => item.title.trim() !== "");
+
+                        renderFilters();
+                        render(allData);
+                        
+                        document.getElementById('loader').classList.add('hidden');
+                        document.getElementById('resultsGrid').classList.remove('hidden');
+                    } catch (e) {
+                        showError("Erreur de traitement", e.message);
+                    }
                 },
                 error: function() {
-                    document.getElementById('loaderText').textContent = "Erreur de connexion au CSV.";
+                    showError("Lien inaccessible", "Vérifiez que vous avez bien 'Publié au Web' l'onglet Export_Public en format CSV.");
                 }
             });
         }
@@ -174,41 +217,41 @@
 
             data.forEach(item => {
                 const container = document.createElement('div');
-                container.className = "group-ref";
+                container.className = "group-ref transition-all duration-300";
                 
                 container.innerHTML = `
                     <div class="reference-card bg-white p-8 shadow-sm rounded-lg border border-gray-100 flex flex-col md:flex-row gap-10 relative overflow-hidden">
                         
-                        <!-- CHECKBOX INCLUSION (NO PRINT) -->
+                        <!-- SELECTION MANUELLE -->
                         <div class="no-print absolute top-3 right-3 flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200">
                              <input type="checkbox" checked onchange="toggleCard(this)" class="w-4 h-4 cursor-pointer accent-[var(--dix-light-green)]">
-                             <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest cursor-pointer">Inclure dans le PDF</label>
+                             <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest cursor-pointer">Inclure</label>
                         </div>
 
-                        <!-- COLONNE GAUCHE -->
+                        <!-- GAUCHE -->
                         <div class="w-full md:w-1/4 flex flex-col items-center md:items-start text-center md:text-left md:border-r border-gray-100 pr-0 md:pr-10">
                             <div class="h-28 w-full flex items-center justify-center mb-8">
                                 ${item.logo 
                                     ? `<img src="${item.logo}" class="max-h-24 max-w-full object-contain" alt="Logo">`
-                                    : `<div class="text-[var(--dix-dark-green)] opacity-10 font-oswald text-5xl">${item.client.charAt(0)}</div>`
+                                    : `<div class="text-[var(--dix-dark-green)] opacity-10 font-oswald text-5xl">${(item.client || "D").charAt(0)}</div>`
                                 }
                             </div>
                             <div class="space-y-5 w-full">
                                 <div>
-                                    <p class="text-[10px] uppercase font-bold text-gray-300 tracking-[0.2em] mb-1.5">Période</p>
+                                    <p class="text-[10px] uppercase font-bold text-gray-300 tracking-[0.2em] mb-1.5 font-oswald">Période</p>
                                     <p class="text-sm font-bold text-[var(--dix-dark-green)]">${item.year}</p>
                                 </div>
                                 <div>
-                                    <p class="text-[10px] uppercase font-bold text-gray-300 tracking-[0.2em] mb-1.5">Localisation</p>
+                                    <p class="text-[10px] uppercase font-bold text-gray-300 tracking-[0.2em] mb-1.5 font-oswald">Localisation</p>
                                     <p class="text-sm font-bold">${item.city}<br><span class="text-xs font-normal text-gray-500">${item.region}</span></p>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- COLONNE DROITE -->
+                        <!-- DROITE -->
                         <div class="flex-1">
                             <div class="mb-6">
-                                <span class="inline-block px-2.5 py-1 bg-[var(--dix-white-grey)] text-[10px] font-bold text-[var(--dix-light-green)] rounded mb-3 uppercase tracking-widest">${item.category}</span>
+                                <span class="inline-block px-2.5 py-1 bg-[var(--dix-white-grey)] text-[10px] font-bold text-[var(--dix-light-green)] rounded mb-3 uppercase tracking-widest font-oswald">${item.category}</span>
                                 <h3 class="text-2xl text-[var(--dix-dark-green)] leading-tight mb-2 font-oswald">${item.title.toUpperCase()}</h3>
                                 <p class="text-md font-bold text-gray-500">${item.client.toUpperCase()}</p>
                             </div>
@@ -227,13 +270,14 @@
         }
 
         function toggleCard(checkbox) {
-            const container = checkbox.closest('.group-ref');
+            const card = checkbox.closest('.group-ref');
+            const inner = card.querySelector('.reference-card');
             if (checkbox.checked) {
-                container.classList.remove('no-print');
-                container.style.opacity = "1";
+                card.classList.remove('no-print');
+                inner.classList.remove('excluded');
             } else {
-                container.classList.add('no-print');
-                container.style.opacity = "0.3";
+                card.classList.add('no-print');
+                inner.classList.add('excluded');
             }
         }
     </script>
