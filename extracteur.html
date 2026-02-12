@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.0/lucide.min.js"></script>
+    <!-- Ajout de la bibliothèque pour la génération d'image HD -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
     <style>
         :root {
@@ -18,72 +20,24 @@
         body { font-family: 'Georgia', serif; color: var(--dix-dark-green); background-color: #f0f2f5; }
         h1, h2, h3, .font-oswald { font-family: 'Oswald', sans-serif; text-transform: uppercase; }
 
-        /* Styles spécifiques pour l'écran uniquement */
         @media screen {
             .hidden-screen { display: none !important; }
         }
 
-        /* Styles Impression */
+        /* --- STYLES IMPRESSION & GÉNÉRATION IMAGE --- */
+        /* On duplique les règles d'impression dans une classe .generating-image pour html2canvas */
+        
         @media print {
             @page { margin: 1cm; size: A4; }
-            
             .no-print { display: none !important; }
             body { background-color: white; padding: 0; font-size: 10pt; margin-bottom: 2cm; } 
             #exportArea { box-shadow: none; border: none; width: 100%; max-width: 100%; margin: 0; padding: 0; }
-            
-            #printFooter {
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                height: 1cm;
-                display: flex !important;
-                justify-content: center;
-                align-items: center;
-                border-top: 2px solid var(--dix-dark-green);
-                background: white;
-                font-size: 7pt;
-                padding-top: 5px;
-                color: #666;
-                z-index: 1000;
-                text-align: center;
-                width: 100%;
-            }
-
-            .reference-card { 
-                display: flex !important; 
-                flex-direction: row !important;
-                align-items: stretch !important;
-                break-inside: avoid; 
-                margin-bottom: 0.5cm !important;
-                padding-bottom: 0.5cm !important;
-                padding-top: 0.5cm !important;
-                border-bottom: 1px solid #000 !important;
-                background-color: transparent !important;
-                border-left: none !important; /* Suppression explicite de la bordure gauche */
-            }
-            
-            /* REGLE CRUCIALE : On cache tout ce qui n'est pas sélectionné */
+            #printFooter { position: fixed; bottom: 0; left: 0; right: 0; height: 1cm; display: flex !important; justify-content: center; align-items: center; border-top: 2px solid var(--dix-dark-green); background: white; font-size: 7pt; padding-top: 5px; color: #666; z-index: 1000; text-align: center; width: 100%; }
+            .reference-card { display: flex !important; flex-direction: row !important; align-items: stretch !important; break-inside: avoid; margin-bottom: 0.5cm !important; padding-bottom: 0.5cm !important; padding-top: 0.5cm !important; border-bottom: 1px solid #000 !important; background-color: transparent !important; border-left: none !important; }
             .reference-card:not(.selected) { display: none !important; }
-            /* On force l'affichage de ce qui est sélectionné (même si masqué à l'écran par le filtre) */
             .reference-card.selected { display: flex !important; }
-
-            .ref-left-col {
-                width: 22% !important; 
-                padding: 0 15px 0 0 !important;
-                background-color: transparent !important;
-                border-right: 1px solid #000 !important;
-                display: flex !important;
-                flex-direction: column !important;
-                justify-content: center !important;
-                text-align: right !important; 
-            }
-
-            .ref-right-col {
-                width: 78% !important;
-                padding: 0 0 0 15px !important;
-            }
-
+            .ref-left-col { width: 22% !important; padding: 0 15px 0 0 !important; background-color: transparent !important; border-right: 1px solid #000 !important; display: flex !important; flex-direction: column !important; justify-content: center !important; text-align: right !important; }
+            .ref-right-col { width: 78% !important; padding: 0 0 0 15px !important; }
             .logo-img { max-height: 40px !important; max-width: 100% !important; object-fit: contain; margin-left: auto !important; margin-right: 0 !important; margin-bottom: 5px !important; }
             .print-hidden-bg { background-color: transparent !important; border: none !important; }
             .mission-desc { font-size: 9pt !important; line-height: 1.3 !important; text-align: justify; }
@@ -92,44 +46,35 @@
             .year-tag { font-size: 8pt !important; padding: 0 !important; border: none !important; color: var(--dix-light-green) !important; text-align: right !important; }
             .decorative-pin { display: none !important; }
             .location-text { font-size: 8pt !important; margin-bottom: 5px !important; }
-            
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
         }
 
+        /* Styles miroirs pour la génération d'image (copie exacte des règles print) */
+        .generating-image .no-print { display: none !important; }
+        .generating-image #exportArea { box-shadow: none !important; border: none !important; width: 100% !important; max-width: 21cm !important; margin: 0 auto !important; padding: 1cm !important; background: white !important; }
+        .generating-image .reference-card { display: flex !important; flex-direction: row !important; align-items: stretch !important; margin-bottom: 0.5cm !important; padding-bottom: 0.5cm !important; padding-top: 0.5cm !important; border-bottom: 1px solid #000 !important; background-color: transparent !important; border-left: none !important; opacity: 1 !important; transform: none !important; }
+        .generating-image .reference-card:not(.selected) { display: none !important; }
+        .generating-image .reference-card.selected { display: flex !important; }
+        .generating-image .ref-left-col { width: 22% !important; padding: 0 15px 0 0 !important; background-color: transparent !important; border-right: 1px solid #000 !important; display: flex !important; flex-direction: column !important; justify-content: center !important; text-align: right !important; }
+        .generating-image .ref-right-col { width: 78% !important; padding: 0 0 0 15px !important; }
+        .generating-image .logo-img { max-height: 40px !important; max-width: 100% !important; object-fit: contain; margin-left: auto !important; margin-right: 0 !important; margin-bottom: 5px !important; }
+        .generating-image .print-hidden-bg { background-color: transparent !important; border: none !important; }
+        .generating-image .mission-desc { font-size: 9pt !important; line-height: 1.3 !important; text-align: justify; }
+        .generating-image h3 { font-size: 11pt !important; margin-bottom: 2px !important; }
+        .generating-image .client-name { font-size: 8pt !important; }
+        .generating-image .year-tag { font-size: 8pt !important; padding: 0 !important; border: none !important; color: var(--dix-light-green) !important; text-align: right !important; }
+        .generating-image .decorative-pin { display: none !important; }
+        .generating-image .location-text { font-size: 8pt !important; margin-bottom: 5px !important; }
+
         /* Styles Interface Editeur (Ecran) */
-        .reference-card { 
-            cursor: pointer; 
-            transition: all 0.2s ease; 
-            /* Suppression de la bordure gauche ici */
-            border-bottom: 1px solid #eee; 
-        }
-        
-        .reference-card.selected { 
-            /* Suppression de la couleur de bordure */
-            background-color: white; 
-        }
-        
+        .reference-card { cursor: pointer; transition: all 0.2s ease; border-left: 4px solid transparent; border-bottom: 1px solid #eee; }
+        .reference-card.selected { border-left-color: var(--dix-light-green); background-color: white; }
         .reference-card:not(.selected) { opacity: 0.5; background-color: transparent; }
         .reference-card:hover { opacity: 1; transform: translateX(5px); background-color: white; }
 
-        .checkbox-custom {
-            width: 20px;
-            height: 20px;
-            border: 2px solid #ddd;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-            background: white;
-        }
-        .selected .checkbox-custom {
-            background-color: var(--dix-light-green);
-            border-color: var(--dix-light-green);
-            color: white;
-        }
-
+        .checkbox-custom { width: 20px; height: 20px; border: 2px solid #ddd; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; background: white; }
+        .selected .checkbox-custom { background-color: var(--dix-light-green); border-color: var(--dix-light-green); color: white; }
         .logo-img { max-width: 140px; max-height: 70px; object-fit: contain; }
         .mission-desc { line-height: 1.5; }
     </style>
@@ -159,6 +104,10 @@
                 <button onclick="toggleAll(true)" class="text-[10px] font-bold text-gray-400 hover:text-[var(--dix-dark-green)] uppercase tracking-widest transition-colors">Tout cocher</button>
                 <button onclick="toggleAll(false)" class="text-[10px] font-bold text-gray-400 hover:text-[var(--dix-dark-green)] uppercase tracking-widest transition-colors">Tout décocher</button>
                 
+                <button onclick="generateImage()" class="bg-gray-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold font-oswald flex items-center gap-2 hover:bg-gray-800 transition-all shadow-lg">
+                    <i data-lucide="image" class="w-4 h-4"></i> GÉNÉRER IMAGE
+                </button>
+
                 <button onclick="window.print()" class="bg-[var(--dix-light-green)] text-white px-6 py-2.5 rounded-xl text-xs font-bold font-oswald flex items-center gap-2 hover:brightness-110 shadow-lg shadow-green-100 transition-all">
                     <i data-lucide="printer" class="w-4 h-4"></i> GÉNÉRER LE PDF
                 </button>
@@ -171,11 +120,9 @@
         
         <!-- HEADER DOCUMENT AVEC LOGO -->
         <div class="border-b-4 border-[var(--dix-dark-green)] pb-4 mb-6 flex justify-between items-end">
-            <!-- Emplacement Logo D.I.X. (Chemin relatif simple) -->
             <div class="w-1/3">
-                <img src="logo.png" alt="Logo D.I.X." class="h-16 object-contain">
+                <img src="logo.png" onerror="this.src='https://placehold.co/200x80/white/405F59?text=LOGO+D.I.X.'" alt="Logo D.I.X." class="h-16 object-contain">
             </div>
-            
             <div class="w-2/3 text-right">
                 <h2 id="docTitle" class="text-3xl md:text-4xl text-[var(--dix-dark-green)] font-oswald tracking-tighter">Nos Références</h2>
                 <div id="docSubtitle" class="text-[var(--dix-light-green)] font-oswald text-lg tracking-[0.2em] mt-1">SÉLECTION PERSONNALISÉE</div>
@@ -197,7 +144,7 @@
         </footer>
     </main>
 
-    <!-- PIED DE PAGE IMPRESSION (Hors Main, Directement dans Body) -->
+    <!-- PIED DE PAGE IMPRESSION (Hors Main, Directement dans Body pour l'impression) -->
     <div id="printFooter" class="hidden">
         <div class="w-full text-center tracking-wider font-oswald">
             D.I.X. La distribution autrement sas — au capital social de 500€ — SIRET: 83093771000028 • RCS: 830937710 • TVA Intra: FR54830937710 — www.dix-autrement.fr
@@ -216,6 +163,53 @@
             document.getElementById('currentDate').textContent = new Date().toLocaleDateString('fr-FR', {year: 'numeric', month: 'long', day: 'numeric'});
             loadData();
         };
+
+        function generateImage() {
+            const element = document.getElementById('exportArea');
+            const footer = document.getElementById('printFooter');
+            
+            // 1. Préparer le mode "Image" (identique au mode Print)
+            document.body.classList.add('generating-image');
+            
+            // 2. Cloner et ajouter le footer en bas de la zone d'export
+            // (Car en mode image, on veut le footer à la fin du contenu, pas en fixed)
+            const footerClone = footer.cloneNode(true);
+            footerClone.id = "temp-footer";
+            footerClone.classList.remove('hidden');
+            footerClone.style.position = 'static'; // Pas fixe pour l'image
+            footerClone.style.marginTop = '2rem';
+            footerClone.style.borderTop = '2px solid var(--dix-dark-green)';
+            footerClone.style.paddingTop = '10px';
+            footerClone.style.fontSize = '8pt';
+            
+            element.appendChild(footerClone);
+
+            // 3. Capturer avec html2canvas en haute qualité
+            html2canvas(element, {
+                scale: 2, // Facteur d'échelle pour la HD (Retina)
+                useCORS: true, // Pour charger les images externes/locales
+                backgroundColor: "#ffffff",
+                windowWidth: 210 * 3.78, // Largeur A4 approx en pixels
+                onclone: (clonedDoc) => {
+                    // Petits ajustements sur le clone si nécessaire
+                }
+            }).then(canvas => {
+                // 4. Nettoyage
+                document.body.classList.remove('generating-image');
+                element.removeChild(footerClone);
+                
+                // 5. Téléchargement
+                const link = document.createElement('a');
+                link.download = `References_DIX_${new Date().toISOString().slice(0,10)}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            }).catch(err => {
+                console.error("Erreur génération image:", err);
+                alert("Une erreur est survenue lors de la génération de l'image.");
+                document.body.classList.remove('generating-image');
+                if(document.getElementById('temp-footer')) element.removeChild(footerClone);
+            });
+        }
 
         function loadData() {
             Papa.parse(CSV_URL, {
@@ -236,11 +230,10 @@
                         city: row[COLS.VILLE] || ""
                     })).filter(d => d.title && d.title !== "Sans titre");
                     
-                    // Tri par année décroissante UNE SEULE FOIS ici
                     allData.sort((a, b) => b.year - a.year);
 
                     renderFilters();
-                    renderRefs(); // On rend TOUT une fois
+                    renderRefs();
                 }
             });
         }
@@ -265,9 +258,6 @@
 
         function filterByTheme() {
             const theme = document.getElementById('themeFilter').value;
-            // Ne pas changer le titre pour éviter des confusions lors des mix de sélections
-            // On masque juste visuellement les cartes qui ne correspondent pas
-            
             const cards = document.querySelectorAll('.reference-card');
             cards.forEach(card => {
                 const cardCategory = card.dataset.category;
@@ -288,7 +278,6 @@
                 .join('<br>');
         }
 
-        // Modifié pour rendre TOUTES les données une fois
         function renderRefs() {
             const container = document.getElementById('refsList');
             container.innerHTML = '';
@@ -297,7 +286,6 @@
                 const isSelected = selectedIds.has(item.id);
                 const div = document.createElement('div');
                 div.id = item.id;
-                // Ajout de l'attribut data-category pour le filtre CSS
                 div.dataset.category = item.category;
                 
                 div.className = `reference-card flex flex-col md:flex-row items-stretch border-transparent ${isSelected ? 'selected' : ''}`;
@@ -366,7 +354,6 @@
 
         function toggleAll(force) {
             const theme = document.getElementById('themeFilter').value;
-            // On cible uniquement les cartes VISIBLES (non masquées par le filtre écran)
             const visibleCards = Array.from(document.querySelectorAll('.reference-card:not(.hidden-screen)'));
             
             visibleCards.forEach(card => {
