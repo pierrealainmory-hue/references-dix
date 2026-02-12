@@ -27,12 +27,12 @@
         @media print {
             .no-print { display: none !important; }
             body { background: white !important; padding: 0 !important; }
-            .page-break { page-break-after: always; }
             .ref-card { 
                 border: 1px solid #eee !important; 
                 box-shadow: none !important; 
                 break-inside: avoid;
                 margin-bottom: 30px !important;
+                page-break-inside: avoid;
             }
             @page { margin: 2cm; }
         }
@@ -42,24 +42,34 @@
         .ref-card.excluded { opacity: 0.15; filter: grayscale(1); }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: var(--dix-green); border-radius: 10px; }
+        
+        #drop-zone.dragover { border-color: var(--dix-green); background-color: rgba(84, 158, 57, 0.05); }
     </style>
 </head>
 <body class="min-h-screen pb-10">
 
-    <!-- BARRE DE COMMANDE (Cachée à l'impression) -->
+    <!-- BARRE DE COMMANDE -->
     <div class="no-print sticky top-0 z-50 bg-white border-b shadow-sm p-4">
-        <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="max-w-6xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-4">
             <div class="flex items-center gap-4">
                 <div class="text-2xl font-oswald tracking-tighter border-r pr-4 border-gray-200">D.I.X.</div>
-                <h1 class="text-lg tracking-widest hidden md:block">Générateur de Références</h1>
+                <h1 class="text-sm tracking-widest hidden md:block">Générateur de Références</h1>
             </div>
 
             <div class="flex items-center gap-3 flex-wrap justify-center">
-                <select id="filterTheme" class="bg-gray-50 border border-gray-200 text-[10px] uppercase tracking-widest p-2 rounded outline-none focus:border-[var(--dix-green)]">
-                    <option value="">Toutes les thématiques</option>
+                <!-- Filtre -->
+                <select id="filterTheme" class="bg-gray-50 border border-gray-200 text-[10px] uppercase tracking-widest p-2 rounded outline-none focus:border-[var(--dix-green)] min-w-[150px]">
+                    <option value="">Thématiques</option>
                 </select>
+
+                <!-- Bouton Import manuel (Toujours présent) -->
+                <input type="file" id="csv-upload" accept=".csv" class="hidden">
+                <label for="csv-upload" class="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded text-[10px] font-oswald tracking-widest cursor-pointer hover:bg-gray-50 transition-all text-gray-500">
+                    <i data-lucide="file-up" class="w-3.5 h-3.5"></i> IMPORTER CSV
+                </label>
                 
-                <button onclick="window.print()" class="bg-[var(--dix-green)] text-white px-5 py-2 rounded font-oswald flex items-center gap-2 hover:brightness-90 transition-all text-sm tracking-widest">
+                <!-- Bouton Export PDF -->
+                <button id="btnPrint" onclick="window.print()" class="hidden bg-[var(--dix-green)] text-white px-5 py-2 rounded font-oswald flex items-center gap-2 hover:brightness-90 transition-all text-sm tracking-widest">
                     <i data-lucide="printer" class="w-4 h-4"></i> EXPORTER PDF
                 </button>
             </div>
@@ -72,35 +82,28 @@
         <p class="text-gray-500 italic">D.I.X. Autrement — Conseil en systèmes alimentaires durables</p>
     </div>
 
-    <!-- ZONE DE CHARGEMENT / IMPORTATION MANUELLE -->
-    <div id="status-container" class="max-w-2xl mx-auto mt-20 text-center px-6">
+    <!-- ZONE D'ACCUEIL / VIDE -->
+    <div id="empty-state" class="max-w-2xl mx-auto mt-20 text-center px-6">
         <div id="loader" class="flex flex-col items-center">
             <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--dix-green)] mb-4"></div>
-            <p class="font-oswald uppercase tracking-widest text-gray-400">Tentative de synchronisation...</p>
+            <p class="font-oswald uppercase tracking-widest text-gray-400">Synchronisation auto...</p>
         </div>
 
-        <!-- Ce bloc est maintenant affiché si la sync échoue ou est trop longue -->
-        <div id="error-fallback" class="hidden mt-8 p-10 bg-white border border-dashed border-gray-300 rounded-3xl shadow-xl">
-            <div class="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                <i data-lucide="upload-cloud" class="w-8 h-8 text-orange-500"></i>
-            </div>
-            <h2 class="font-oswald text-2xl mb-3 text-[var(--dix-dark)]">Importation des données</h2>
+        <div id="import-prompt" class="hidden mt-8 p-12 bg-white border-2 border-dashed border-gray-200 rounded-3xl shadow-sm">
+            <i data-lucide="database" class="w-12 h-12 text-gray-300 mx-auto mb-6"></i>
+            <h2 class="font-oswald text-2xl mb-3 text-[var(--dix-dark)]">Aucune donnée chargée</h2>
             <p class="text-sm text-gray-500 mb-8 leading-relaxed">
-                La synchronisation automatique est bloquée (souvent lié à la sécurité du navigateur en local).<br>
-                Veuillez sélectionner votre fichier <strong>CSV</strong> pour générer les fiches.
+                La connexion automatique à Google Sheets a échoué (mode local bloqué).<br>
+                Cliquez sur le bouton ci-dessous pour charger votre fichier CSV.
             </p>
-            <input type="file" id="csv-upload" accept=".csv" class="hidden">
-            <label for="csv-upload" class="inline-block bg-[var(--dix-dark)] text-white px-8 py-4 rounded-xl font-oswald tracking-[0.2em] cursor-pointer hover:bg-black transition-all shadow-lg hover:shadow-2xl">
+            <label for="csv-upload" class="inline-block bg-[var(--dix-dark)] text-white px-8 py-4 rounded-xl font-oswald tracking-[0.2em] cursor-pointer hover:bg-black transition-all shadow-lg">
                 SÉLECTIONNER LE FICHIER CSV
             </label>
-            <p class="mt-6 text-[10px] text-gray-400 uppercase tracking-widest italic">Format attendu : .csv (Export Google Sheets)</p>
         </div>
     </div>
 
-    <!-- GRILLE DES FICHES RÉFÉRENCES -->
-    <div id="ref-grid" class="max-w-5xl mx-auto p-6 grid grid-cols-1 gap-10">
-        <!-- Généré dynamiquement -->
-    </div>
+    <!-- GRILLE DES FICHES -->
+    <div id="ref-grid" class="max-w-5xl mx-auto p-6 grid grid-cols-1 gap-10"></div>
 
     <!-- FOOTER PDF -->
     <div class="print-only mt-20 pt-4 border-t text-[10px] text-center text-gray-400 font-oswald tracking-widest uppercase">
@@ -111,89 +114,75 @@
         const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSm_4bPCRFK_gGVkxP-ZeTHzLauhQtqNg_zG2chKNuY8-iyDAuHjc_CQbpBCU4LY9-GRi1579CsUkhr/pub?gid=917397259&single=true&output=csv";
         let allData = [];
 
-        // Initialisation
         window.onload = () => {
             lucide.createIcons();
-            tryAutoSync();
-        };
-
-        // Essayer de charger automatiquement (GitHub/Web)
-        function tryAutoSync() {
+            
+            // Tentative auto
             Papa.parse(CSV_URL, {
                 download: true,
                 header: true,
                 skipEmptyLines: true,
                 complete: (results) => {
-                    if(results.data && results.data.length > 0) {
-                        processData(results.data);
-                    } else {
-                        showFallback();
-                    }
+                    if (results.data && results.data.length > 0) processData(results.data);
+                    else showImportPrompt();
                 },
-                error: (err) => {
-                    console.error("PapaParse error:", err);
-                    showFallback();
-                }
+                error: () => showImportPrompt()
             });
-            // Si après 2 secondes rien n'est chargé, on propose l'import manuel
-            setTimeout(() => { 
-                if(allData.length === 0) showFallback(); 
-            }, 2000);
+
+            // Si rien au bout de 2s, on montre l'invite
+            setTimeout(() => {
+                if (allData.length === 0) showImportPrompt();
+            }, 2500);
+        };
+
+        function showImportPrompt() {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('import-prompt').classList.remove('hidden');
         }
 
-        // Afficher l'import manuel
-        function showFallback() {
-            const loader = document.getElementById('loader');
-            const fallback = document.getElementById('error-fallback');
-            if (loader) loader.classList.add('hidden');
-            if (fallback) fallback.classList.remove('hidden');
-        }
-
-        // Gérer l'upload manuel
         document.getElementById('csv-upload').addEventListener('change', (e) => {
             const file = e.target.files[0];
-            if(file) {
+            if (file) {
                 Papa.parse(file, {
                     header: true,
                     skipEmptyLines: true,
-                    complete: (results) => processData(results.data),
-                    error: (err) => alert("Erreur lors de la lecture du fichier : " + err)
+                    complete: (results) => processData(results.data)
                 });
             }
         });
 
-        // Traitement des données (Mapping flexible)
         function processData(data) {
+            // Mapping basé sur les colonnes réelles de votre fichier
             allData = data.map((row, i) => {
-                // Fonction pour trouver une valeur même si le nom de la colonne varie (accents, majuscules)
-                const findValue = (keys) => {
-                    const rowKeys = Object.keys(row);
-                    const matchingKey = rowKeys.find(k => {
-                        const normalizedK = k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                        return keys.some(key => normalizedK.includes(key));
+                const find = (keys) => {
+                    const rowKey = Object.keys(row).find(k => {
+                        const norm = k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        return keys.some(key => norm.includes(key));
                     });
-                    return matchingKey ? row[matchingKey] : "";
+                    return rowKey ? row[rowKey] : "";
                 };
 
                 return {
                     id: i,
-                    year: findValue(['annee', 'year']),
-                    client: findValue(['commanditaire', 'client']),
-                    title: findValue(['intitule', 'titre', 'mission']),
-                    desc: findValue(['descriptif', 'description']),
-                    theme: findValue(['thematique', 'categorie', 'type']),
-                    city: findValue(['ville']),
-                    region: findValue(['region']),
-                    logo: cleanLogo(findValue(['logos', 'logo']))
+                    year: find(['annee']),
+                    region: find(['region']),
+                    logo: cleanLogo(find(['logos', 'logo'])),
+                    client: find(['commanditaire', 'client']),
+                    theme: find(['thematique', 'categorie']),
+                    title: find(['intitule', 'titre']),
+                    desc: find(['descriptif', 'description']),
+                    city: find(['ville'])
                 };
-            }).filter(d => d.title && d.title.length > 2);
+            }).filter(d => d.title && d.title.length > 3);
 
-            if(allData.length > 0) {
-                document.getElementById('status-container').classList.add('hidden');
+            if (allData.length > 0) {
+                document.getElementById('empty-state').style.display = 'none';
+                document.getElementById('btnPrint').classList.remove('hidden');
                 initFilters();
                 render();
             } else {
-                alert("Aucune donnée valide trouvée dans le fichier. Vérifiez les entêtes.");
+                alert("Erreur : Les colonnes du fichier ne correspondent pas. Vérifiez que le fichier contient bien 'Intitulé de la mission'.");
+                showImportPrompt();
             }
         }
 
@@ -206,7 +195,6 @@
         function initFilters() {
             const themes = [...new Set(allData.map(d => d.theme))].filter(Boolean).sort();
             const select = document.getElementById('filterTheme');
-            // Reset
             select.innerHTML = '<option value="">Toutes les thématiques</option>';
             themes.forEach(t => {
                 const opt = document.createElement('option');
@@ -225,20 +213,16 @@
 
             filtered.forEach(item => {
                 const card = document.createElement('div');
-                card.className = "ref-card-container group";
+                card.className = "ref-wrapper";
                 card.innerHTML = `
-                    <div id="card-${item.id}" class="ref-card bg-white p-8 md:p-12 shadow-sm rounded-lg flex flex-col md:flex-row gap-10 relative overflow-hidden">
+                    <div id="card-${item.id}" class="ref-card bg-white p-8 md:p-12 shadow-sm rounded-lg flex flex-col md:flex-row gap-10 relative overflow-hidden transition-all duration-300">
                         
-                        <!-- Bouton d'exclusion (Caché à l'impression) -->
-                        <div class="no-print absolute top-4 right-4 flex items-center gap-2">
-                             <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest cursor-pointer flex items-center gap-2">
-                                <input type="checkbox" checked onchange="toggleRef(${item.id})" class="w-4 h-4 accent-[var(--dix-green)]">
-                                Inclure
-                             </label>
+                        <div class="no-print absolute top-4 right-4 flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-full border border-gray-200">
+                             <input type="checkbox" checked onchange="toggleRef(${item.id})" class="w-4 h-4 cursor-pointer accent-[var(--dix-green)]">
+                             <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest cursor-pointer">Inclure</label>
                         </div>
 
-                        <!-- Colonne Infos GAUCHE -->
-                        <div class="w-full md:w-1/4 flex flex-col items-center md:items-start border-b md:border-b-0 md:border-r border-gray-100 pb-6 md:pb-0 md:pr-10">
+                        <div class="w-full md:w-1/4 flex flex-col items-center md:items-start border-b md:border-b-0 md:border-r border-gray-100 pb-8 md:pb-0 md:pr-10">
                             <div class="h-28 w-full flex items-center justify-center mb-8 bg-gray-50 rounded-lg p-4">
                                 ${item.logo 
                                     ? `<img src="${item.logo}" class="max-h-full max-w-full object-contain" alt="Logo">`
@@ -257,11 +241,10 @@
                             </div>
                         </div>
 
-                        <!-- Colonne Texte DROITE -->
                         <div class="flex-1">
                             <div class="mb-6">
                                 <h4 class="text-xs font-bold text-gray-400 mb-1 tracking-tight">${item.client ? item.client.toUpperCase() : ''}</h4>
-                                <span class="inline-block px-2 py-0.5 bg-[var(--dix-grey)] text-[10px] font-bold text-[var(--dix-green)] rounded mb-3 tracking-widest uppercase font-oswald">${item.theme}</span>
+                                <span class="inline-block px-2.5 py-1 bg-[var(--dix-grey)] text-[10px] font-bold text-[var(--dix-green)] rounded mb-3 tracking-widest uppercase font-oswald">${item.theme}</span>
                                 <h3 class="text-xl md:text-2xl text-[var(--dix-dark)] leading-tight mb-2 font-oswald">${item.title.toUpperCase()}</h3>
                             </div>
                             
