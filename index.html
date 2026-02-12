@@ -3,15 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>D.I.X. Autrement - Nos Références</title>
-    
-    <!-- Polices Charte D.I.X. -->
+    <title>D.I.X. - Extracteur de Références Sélectif</title>
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500&family=Georgia&display=swap" rel="stylesheet">
-    
-    <!-- Bibliothèques externes -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.0/lucide.min.js"></script>
 
@@ -19,184 +13,209 @@
         :root {
             --dix-dark-green: #405F59;
             --dix-light-green: #549e39;
-            --dix-white-grey: #f3f3f3;
         }
 
-        body { font-family: 'Georgia', serif; color: var(--dix-dark-green); overflow: hidden; background-color: white; height: 100vh; }
-        h1, h2, h3, h4, .font-oswald { 
-            font-family: 'Oswald', sans-serif; 
-            text-transform: uppercase;
-            font-weight: 400;
-        }
-        
-        #map { height: 100%; width: 100%; background: #f8fafc; z-index: 1; }
-        
-        /* Barre de défilement discrète */
-        .custom-scroll::-webkit-scrollbar { width: 4px; }
-        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: var(--dix-light-green); border-radius: 10px; }
+        body { font-family: 'Georgia', serif; color: var(--dix-dark-green); background-color: #f0f2f5; }
+        h1, h2, h3, .font-oswald { font-family: 'Oswald', sans-serif; text-transform: uppercase; }
 
-        .active-card { border-left: 4px solid var(--dix-light-green) !important; background-color: white !important; transform: translateX(5px); }
-        
-        .marker-dot { transition: all 0.2s ease; cursor: pointer; }
-        
-        /* Panneau de détails : Responsive et Scrollable */
-        #detailPanel { 
-            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
-            box-shadow: -10px 0 30px rgba(0,0,0,0.1);
-            max-height: calc(100vh - 140px);
-            overflow-y: auto;
+        /* Styles spécifiques pour l'écran uniquement */
+        @media screen {
+            .hidden-screen { display: none !important; }
         }
 
-        .logo-container {
-            max-width: 140px;
-            max-height: 60px;
-            object-fit: contain;
-            margin-bottom: 1rem;
-        }
-
-        /* Fixation absolue de l'en-tête pour l'iframe */
-        header { 
-            position: sticky; 
-            top: 0; 
-            background: white; 
-            z-index: 100; 
-            flex-shrink: 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        @media (max-width: 768px) {
-            #detailPanel { 
-                top: auto !important;
-                bottom: 0 !important; 
-                left: 0 !important; 
-                right: 0 !important; 
-                width: 100% !important;
-                border-radius: 20px 20px 0 0; 
-                max-height: 80vh !important; 
-                transform: translateY(150%);
+        /* Styles Impression */
+        @media print {
+            @page { margin: 1cm; size: A4; }
+            
+            .no-print { display: none !important; }
+            body { background-color: white; padding: 0; font-size: 10pt; margin-bottom: 2cm; } 
+            #exportArea { box-shadow: none; border: none; width: 100%; max-width: 100%; margin: 0; padding: 0; }
+            
+            #printFooter {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 1cm;
+                display: flex !important;
+                justify-content: center;
+                align-items: center;
+                border-top: 2px solid var(--dix-dark-green);
+                background: white;
+                font-size: 7pt;
+                padding-top: 5px;
+                color: #666;
+                z-index: 1000;
+                text-align: center;
+                width: 100%;
             }
+
+            .reference-card { 
+                display: flex !important; 
+                flex-direction: row !important;
+                align-items: stretch !important;
+                break-inside: avoid; 
+                margin-bottom: 0.5cm !important;
+                padding-bottom: 0.5cm !important;
+                padding-top: 0.5cm !important;
+                border-bottom: 1px solid #000 !important;
+                background-color: transparent !important;
+                border-left: none !important; /* Suppression explicite de la bordure gauche */
+            }
+            
+            /* REGLE CRUCIALE : On cache tout ce qui n'est pas sélectionné */
+            .reference-card:not(.selected) { display: none !important; }
+            /* On force l'affichage de ce qui est sélectionné (même si masqué à l'écran par le filtre) */
+            .reference-card.selected { display: flex !important; }
+
+            .ref-left-col {
+                width: 22% !important; 
+                padding: 0 15px 0 0 !important;
+                background-color: transparent !important;
+                border-right: 1px solid #000 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+                text-align: right !important; 
+            }
+
+            .ref-right-col {
+                width: 78% !important;
+                padding: 0 0 0 15px !important;
+            }
+
+            .logo-img { max-height: 40px !important; max-width: 100% !important; object-fit: contain; margin-left: auto !important; margin-right: 0 !important; margin-bottom: 5px !important; }
+            .print-hidden-bg { background-color: transparent !important; border: none !important; }
+            .mission-desc { font-size: 9pt !important; line-height: 1.3 !important; text-align: justify; }
+            h3 { font-size: 11pt !important; margin-bottom: 2px !important; }
+            .client-name { font-size: 8pt !important; }
+            .year-tag { font-size: 8pt !important; padding: 0 !important; border: none !important; color: var(--dix-light-green) !important; text-align: right !important; }
+            .decorative-pin { display: none !important; }
+            .location-text { font-size: 8pt !important; margin-bottom: 5px !important; }
+            
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
         }
+
+        /* Styles Interface Editeur (Ecran) */
+        .reference-card { 
+            cursor: pointer; 
+            transition: all 0.2s ease; 
+            /* Suppression de la bordure gauche ici */
+            border-bottom: 1px solid #eee; 
+        }
+        
+        .reference-card.selected { 
+            /* Suppression de la couleur de bordure */
+            background-color: white; 
+        }
+        
+        .reference-card:not(.selected) { opacity: 0.5; background-color: transparent; }
+        .reference-card:hover { opacity: 1; transform: translateX(5px); background-color: white; }
+
+        .checkbox-custom {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            background: white;
+        }
+        .selected .checkbox-custom {
+            background-color: var(--dix-light-green);
+            border-color: var(--dix-light-green);
+            color: white;
+        }
+
+        .logo-img { max-width: 140px; max-height: 70px; object-fit: contain; }
+        .mission-desc { line-height: 1.5; }
     </style>
 </head>
-<body class="flex flex-col h-screen overflow-hidden">
+<body class="p-4 md:p-8">
 
-    <!-- HEADER / FILTRES -->
-    <header class="border-b bg-white">
-        <div class="flex flex-col md:flex-row items-center w-full px-4 py-3 md:py-5">
-            <!-- Titre aligné avec la colonne de gauche (md:w-1/3 lg:w-1/4) -->
-            <div class="w-full md:w-1/3 lg:w-1/4 mb-4 md:mb-0">
-                <h1 class="text-xl md:text-2xl tracking-widest text-[var(--dix-dark-green)]">Nos Références</h1>
-                <div class="w-12 h-0.5 mt-1 bg-[var(--dix-light-green)]"></div>
+    <!-- BARRE D'OUTILS FIXE -->
+    <div class="no-print sticky top-0 z-50 mb-8 pb-4">
+        <header class="max-w-6xl mx-auto bg-white p-4 rounded-2xl shadow-xl border border-gray-100 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <div class="bg-[var(--dix-dark-green)] text-white p-2 rounded-lg">
+                    <i data-lucide="file-text" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl tracking-widest text-[var(--dix-dark-green)] leading-none">Extracteur D.I.X.</h1>
+                    <p id="selectionCounter" class="text-[10px] font-bold text-[var(--dix-light-green)] uppercase mt-1">0 RÉFÉRENCE SÉLECTIONNÉE</p>
+                </div>
             </div>
             
-            <!-- Recherche et filtres à droite -->
-            <div class="flex flex-wrap gap-2 w-full md:w-auto md:ml-auto justify-end">
-                <div class="relative flex-grow md:w-64">
-                    <input type="text" id="searchInput" placeholder="Rechercher une mission..." 
-                        class="w-full pl-9 pr-4 py-1.5 border rounded-full text-xs outline-none focus:ring-1 focus:ring-[var(--dix-light-green)] border-gray-200 bg-[var(--dix-white-grey)]/50 shadow-inner">
-                    <i data-lucide="search" class="absolute left-3 top-2 text-gray-400 w-3.5 h-3.5"></i>
-                </div>
-                <select id="themeFilter" class="px-3 py-1.5 border rounded-full text-[9px] uppercase tracking-widest outline-none bg-white border-gray-200 cursor-pointer hover:border-[var(--dix-light-green)] transition-colors min-w-[180px]">
-                    <option value="">Thématiques & Interventions</option>
+            <div class="flex flex-wrap items-center gap-3">
+                <select id="themeFilter" class="px-3 py-2 border rounded-xl text-xs outline-none bg-gray-50 cursor-pointer hover:border-[var(--dix-light-green)] transition-colors min-w-[200px]">
+                    <option value="">Toutes les thématiques</option>
                 </select>
-            </div>
-        </div>
-    </header>
-
-    <!-- MAIN -->
-    <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
-        
-        <!-- SIDEBAR -->
-        <div id="sidebar" class="w-full h-1/3 md:h-auto md:w-1/3 lg:w-1/4 bg-[var(--dix-white-grey)]/40 border-r overflow-y-auto custom-scroll p-3 space-y-2.5">
-            <div id="loader" class="flex flex-col items-center justify-center py-20 text-gray-400 text-center px-4">
-                <div id="loaderIcon" class="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--dix-light-green)] mb-2"></div>
-                <p id="loaderStatus" class="text-[10px] uppercase tracking-widest font-bold">Mise à jour en direct...</p>
-            </div>
-            <div id="resultsList" class="space-y-2.5 hidden"></div>
-        </div>
-
-        <!-- ZONE CARTE -->
-        <div class="flex-1 relative overflow-hidden">
-            <div id="map"></div>
-            
-            <!-- DETAIL PANEL -->
-            <div id="detailPanel" class="absolute top-4 right-4 w-[calc(100%-2rem)] md:w-[420px] bg-white rounded-2xl shadow-2xl p-5 md:p-7 border-t-8 border-[var(--dix-dark-green)] transform translate-x-[120%] z-[1000] custom-scroll">
-                <button onclick="closeDetails()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
                 
-                <div class="flex flex-col gap-1.5">
-                    <div id="detLogoContainer" class="hidden flex justify-start">
-                        <img id="detLogo" src="" alt="Logo client" class="logo-container">
-                    </div>
+                <div class="h-8 w-px bg-gray-200 mx-1"></div>
 
-                    <div class="flex items-center gap-2 mb-1">
-                        <span id="detYear" class="bg-[var(--dix-white-grey)] text-[8px] font-bold px-1.5 py-0.5 rounded text-[var(--dix-dark-green)]"></span>
-                        <span id="detTheme" class="text-[8px] uppercase tracking-widest font-bold text-[var(--dix-light-green)]"></span>
-                    </div>
-                    <h2 id="detTitle" class="text-base md:text-lg text-[var(--dix-dark-green)] leading-tight font-oswald mb-0.5"></h2>
-                    <p id="detClient" class="text-xs font-bold text-gray-500"></p>
-                    <div class="h-px bg-gray-100 w-full my-2.5"></div>
-                    <div id="detDesc" class="text-gray-600 text-[11px] md:text-xs italic leading-relaxed whitespace-pre-line pr-2 mb-3"></div>
-                    <div class="flex items-center gap-2 mt-2 text-[8px] text-gray-400 uppercase tracking-widest font-oswald border-t pt-3">
-                        <i data-lucide="map-pin" class="w-2.5 h-2.5 text-[var(--dix-light-green)]"></i>
-                        <span id="detLoc"></span>
-                    </div>
-                </div>
+                <button onclick="toggleAll(true)" class="text-[10px] font-bold text-gray-400 hover:text-[var(--dix-dark-green)] uppercase tracking-widest transition-colors">Tout cocher</button>
+                <button onclick="toggleAll(false)" class="text-[10px] font-bold text-gray-400 hover:text-[var(--dix-dark-green)] uppercase tracking-widest transition-colors">Tout décocher</button>
+                
+                <button onclick="window.print()" class="bg-[var(--dix-light-green)] text-white px-6 py-2.5 rounded-xl text-xs font-bold font-oswald flex items-center gap-2 hover:brightness-110 shadow-lg shadow-green-100 transition-all">
+                    <i data-lucide="printer" class="w-4 h-4"></i> GÉNÉRER LE PDF
+                </button>
+            </div>
+        </header>
+    </div>
+
+    <!-- PAGE DOCUMENT -->
+    <main id="exportArea" class="max-w-5xl mx-auto bg-white p-8 md:p-12 shadow-2xl rounded-sm min-h-[29.7cm] relative z-10">
+        
+        <!-- HEADER DOCUMENT AVEC LOGO -->
+        <div class="border-b-4 border-[var(--dix-dark-green)] pb-4 mb-6 flex justify-between items-end">
+            <!-- Emplacement Logo D.I.X. (Chemin relatif simple) -->
+            <div class="w-1/3">
+                <img src="logo.png" alt="Logo D.I.X." class="h-16 object-contain">
+            </div>
+            
+            <div class="w-2/3 text-right">
+                <h2 id="docTitle" class="text-3xl md:text-4xl text-[var(--dix-dark-green)] font-oswald tracking-tighter">Nos Références</h2>
+                <div id="docSubtitle" class="text-[var(--dix-light-green)] font-oswald text-lg tracking-[0.2em] mt-1">SÉLECTION PERSONNALISÉE</div>
+                <div class="text-[10px] text-gray-400 uppercase tracking-widest mt-2 italic">Dossier généré le <span id="currentDate"></span></div>
             </div>
         </div>
+
+        <!-- LISTE DES RÉFÉRENCES -->
+        <div id="refsList" class="divide-y divide-gray-100">
+            <div class="flex flex-col items-center py-24 text-gray-300">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--dix-light-green)] mb-6"></div>
+                <p class="font-oswald tracking-[0.3em] text-sm uppercase">Récupération des missions...</p>
+            </div>
+        </div>
+
+        <!-- FOOTER ECRAN (Simple) -->
+        <footer class="no-print mt-8 pt-4 border-t border-gray-100 text-[9px] text-gray-400 text-center opacity-70">
+            <span class="uppercase tracking-widest italic">D.I.X. Autrement — Modélisation & Évaluation de circuits de proximité</span>
+        </footer>
     </main>
 
-    <footer class="bg-white border-t p-1.5 text-[8px] uppercase tracking-[0.3em] text-center text-gray-400 font-oswald flex-shrink-0">
-        D.I.X. Autrement — Modélisation & Évaluation de circuits de proximité
-    </footer>
+    <!-- PIED DE PAGE IMPRESSION (Hors Main, Directement dans Body) -->
+    <div id="printFooter" class="hidden">
+        <div class="w-full text-center tracking-wider font-oswald">
+            D.I.X. La distribution autrement sas — au capital social de 500€ — SIRET: 83093771000028 • RCS: 830937710 • TVA Intra: FR54830937710 — www.dix-autrement.fr
+        </div>
+    </div>
 
     <script>
-        // CONFIGURATION
         const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSm_4bPCRFK_gGVkxP-ZeTHzLauhQtqNg_zG2chKNuY8-iyDAuHjc_CQbpBCU4LY9-GRi1579CsUkhr/pub?gid=917397259&single=true&output=csv";
         
-        let COLS = {
-            ANNEE: 0, REGION: 1, LOGO: 2, CLIENT: 3, TYPE: 4, CATEGORIE: 5, TITRE: 6, DESC: 7, VILLE: 9, LAT: 10, LNG: 11
-        };
-
         let allData = [];
-        let map, markersLayer;
+        let selectedIds = new Set();
+        const COLS = { ANNEE: 0, REGION: 1, LOGO: 2, CLIENT: 3, TITRE: 6, DESC: 7, VILLE: 9, CATEGORIE: 5 };
 
-        function updateLoaderStatus(status, hint = "") {
-            const statusEl = document.getElementById('loaderStatus');
-            const iconEl = document.getElementById('loaderIcon');
-            if (statusEl) statusEl.textContent = status;
-            if (status.includes("Erreur") && iconEl) iconEl.classList.remove('animate-spin');
-        }
-
-        window.onload = function() {
-            try {
-                if (window.lucide) lucide.createIcons();
-                initMap();
-                loadData();
-            } catch (err) {
-                updateLoaderStatus("Erreur Système");
-            }
+        window.onload = () => {
+            if (window.lucide) lucide.createIcons();
+            document.getElementById('currentDate').textContent = new Date().toLocaleDateString('fr-FR', {year: 'numeric', month: 'long', day: 'numeric'});
+            loadData();
         };
-
-        function initMap() {
-            map = L.map('map', { zoomControl: false }).setView([46.80, 2.50], 6);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; OpenStreetMap'
-            }).addTo(map);
-            L.control.zoom({ position: 'bottomright' }).addTo(map);
-            markersLayer = L.layerGroup().addTo(map);
-        }
-
-        function cleanUrl(text) {
-            if (!text) return null;
-            let url = text.trim();
-            const match = url.match(/["'](http[^"']+)["']/i);
-            if (match) return match[1];
-            if (url.startsWith('http')) return url;
-            return null;
-        }
 
         function loadData() {
             Papa.parse(CSV_URL, {
@@ -204,59 +223,33 @@
                 header: false,
                 skipEmptyLines: true,
                 complete: function(results) {
-                    if (!results.data || results.data.length < 2) {
-                        updateLoaderStatus("Erreur : Fichier vide");
-                        return;
-                    }
-                    const header = results.data[0];
                     const rows = results.data.slice(1);
+                    allData = rows.map((row, index) => ({
+                        id: 'ref-' + index,
+                        year: row[COLS.ANNEE] || "",
+                        region: row[COLS.REGION] || "",
+                        logo: cleanUrl(row[COLS.LOGO]),
+                        client: row[COLS.CLIENT] || "Client Inconnu",
+                        category: row[COLS.CATEGORIE] || "Autre",
+                        title: row[COLS.TITRE] || "Sans titre",
+                        desc: row[COLS.DESC] || "",
+                        city: row[COLS.VILLE] || ""
+                    })).filter(d => d.title && d.title !== "Sans titre");
                     
-                    const findCol = (names) => header.findIndex(h => names.some(n => h.toLowerCase().includes(n.toLowerCase())));
-                    const idxLat = findCol(['lat', 'latitude']);
-                    const idxLng = findCol(['long', 'lng', 'longitude']);
-                    const idxCat = findCol(['catégorie', 'thématique']);
-                    const idxClient = findCol(['client', 'commanditaire']);
-                    
-                    if (idxLat !== -1) COLS.LAT = idxLat;
-                    if (idxLng !== -1) COLS.LNG = idxLng;
-                    if (idxCat !== -1) COLS.CATEGORIE = idxCat;
-                    if (idxClient !== -1) COLS.CLIENT = idxClient;
+                    // Tri par année décroissante UNE SEULE FOIS ici
+                    allData.sort((a, b) => b.year - a.year);
 
-                    allData = rows.map((row, index) => {
-                        try {
-                            const cleanCoord = (val) => String(val || "").replace(/\s/g, '').replace(',', '.').trim();
-                            const lat = parseFloat(cleanCoord(row[COLS.LAT]));
-                            const lng = parseFloat(cleanCoord(row[COLS.LNG]));
-                            if (isNaN(lat) || isNaN(lng)) return null;
-                            return {
-                                id: index,
-                                year: row[COLS.ANNEE] || "",
-                                region: row[COLS.REGION] || "",
-                                logo: cleanUrl(row[COLS.LOGO]),
-                                client: row[COLS.CLIENT] || "Client",
-                                category: row[COLS.CATEGORIE] || "AUTRE",
-                                title: row[COLS.TITRE] || "Sans titre",
-                                desc: row[COLS.DESC] || "",
-                                city: row[COLS.VILLE] || "",
-                                lat: lat,
-                                lng: lng
-                            };
-                        } catch (err) { return null; }
-                    }).filter(item => item !== null);
-
-                    if (allData.length === 0) {
-                        updateLoaderStatus("Erreur : GPS");
-                        return;
-                    }
                     renderFilters();
-                    render(allData);
-                    document.getElementById('loader').classList.add('hidden');
-                    document.getElementById('resultsList').classList.remove('hidden');
-                },
-                error: function(err) {
-                    updateLoaderStatus("Erreur de lien");
+                    renderRefs(); // On rend TOUT une fois
                 }
             });
+        }
+
+        function cleanUrl(text) {
+            if (!text) return null;
+            let url = text.trim();
+            const match = url.match(/["'](http[^"']+)["']/i);
+            return match ? match[1] : (url.startsWith('http') ? url : null);
         }
 
         function renderFilters() {
@@ -267,110 +260,128 @@
                 opt.value = c; opt.textContent = c.toUpperCase();
                 select.appendChild(opt);
             });
+            select.onchange = filterByTheme;
         }
 
-        function render(data) {
-            const listContainer = document.getElementById('resultsList');
-            listContainer.innerHTML = '';
-            markersLayer.clearLayers();
-            const bounds = [];
+        function filterByTheme() {
+            const theme = document.getElementById('themeFilter').value;
+            // Ne pas changer le titre pour éviter des confusions lors des mix de sélections
+            // On masque juste visuellement les cartes qui ne correspondent pas
+            
+            const cards = document.querySelectorAll('.reference-card');
+            cards.forEach(card => {
+                const cardCategory = card.dataset.category;
+                if (theme === "" || cardCategory === theme) {
+                    card.classList.remove('hidden-screen');
+                } else {
+                    card.classList.add('hidden-screen');
+                }
+            });
+        }
 
-            data.forEach(item => {
-                const card = document.createElement('div');
-                card.id = `card-${item.id}`;
-                card.className = "bg-white rounded-lg cursor-pointer transition-all shadow-sm hover:shadow-md border border-gray-100 group overflow-hidden";
+        function formatDescription(text) {
+            if (!text) return "";
+            return text
+                .split('-')
+                .filter(part => part.trim() !== "")
+                .map(part => `- ${part.trim()}`)
+                .join('<br>');
+        }
+
+        // Modifié pour rendre TOUTES les données une fois
+        function renderRefs() {
+            const container = document.getElementById('refsList');
+            container.innerHTML = '';
+
+            allData.forEach(item => {
+                const isSelected = selectedIds.has(item.id);
+                const div = document.createElement('div');
+                div.id = item.id;
+                // Ajout de l'attribut data-category pour le filtre CSS
+                div.dataset.category = item.category;
                 
-                card.innerHTML = `
-                    <div class="flex items-stretch h-full min-h-[100px]">
-                        <div class="w-1/3 bg-gray-50 flex items-center justify-center p-2 border-r border-gray-50 flex-shrink-0">
-                            ${item.logo 
-                                ? `<img src="${item.logo}" class="max-h-16 w-full object-contain filter grayscale group-hover:grayscale-0 transition-all" alt="Logo">`
-                                : `<div class="text-[var(--dix-dark-green)] opacity-10 font-oswald text-xl">${(item.client || "D").charAt(0)}</div>`
-                            }
-                        </div>
-                        <div class="w-2/3 p-3 flex flex-col justify-center">
-                            <h4 class="text-[10px] font-bold text-[var(--dix-dark-green)] font-oswald mb-0.5 leading-tight line-clamp-1">${item.client ? item.client.toUpperCase() : 'CLIENT'}</h4>
-                            <div class="flex justify-between items-center mb-1">
-                                <span class="text-[7px] uppercase tracking-tighter text-[var(--dix-light-green)] font-bold">${item.category}</span>
-                                <span class="text-[7px] font-bold px-1 py-0.5 bg-gray-100 rounded group-hover:bg-[var(--dix-light-green)] group-hover:text-white transition-colors">${item.year}</span>
+                div.className = `reference-card flex flex-col md:flex-row items-stretch border-transparent ${isSelected ? 'selected' : ''}`;
+                
+                div.onclick = (e) => {
+                    if (e.target.closest('.no-print')) toggleSelection(item.id);
+                    else toggleSelection(item.id);
+                };
+
+                const formattedDesc = formatDescription(item.desc);
+
+                div.innerHTML = `
+                    <div class="ref-left-col w-full md:w-56 flex-shrink-0 p-5 bg-gray-50 flex flex-col justify-center items-center md:items-center text-center relative border-r border-gray-100 print-hidden-bg">
+                        <div class="no-print absolute top-3 left-3">
+                            <div class="checkbox-custom">
+                                ${isSelected ? '<i data-lucide="check" class="w-3 h-3"></i>' : ''}
                             </div>
-                            <p class="text-[9px] leading-tight text-gray-500 italic line-clamp-2">${item.title || 'Sans titre'}</p>
                         </div>
+                        
+                        <div class="mb-3 flex items-center justify-center min-h-[60px]">
+                            ${item.logo ? `<img src="${item.logo}" class="logo-img">` : `<div class="font-oswald text-4xl text-gray-200">${item.client.charAt(0)}</div>`}
+                        </div>
+                        
+                        <div class="client-name text-[11px] font-bold text-[var(--dix-dark-green)] font-oswald uppercase tracking-wider leading-tight mb-2 max-w-full px-2">${item.client}</div>
+                        <div class="year-tag text-[10px] font-bold text-[var(--dix-light-green)] font-oswald tracking-[0.2em] bg-white px-2 py-0.5 rounded shadow-sm border border-gray-100 print-hidden-bg">${item.year}</div>
+                    </div>
+
+                    <div class="ref-right-col flex-1 p-5 md:p-8 flex flex-col justify-center">
+                        <div class="text-[8px] uppercase tracking-[0.4em] text-gray-300 font-bold mb-1 no-print">${item.category}</div>
+                        
+                        <h3 class="text-xl text-[var(--dix-dark-green)] leading-snug font-medium font-oswald tracking-tight mb-1">${item.title}</h3>
+                        
+                        <div class="location-text text-[10px] text-[var(--dix-light-green)] uppercase tracking-widest font-oswald mb-2 flex items-center gap-1.5 font-bold">
+                            <i data-lucide="map-pin" class="w-3 h-3 decorative-pin"></i>
+                            ${item.city} ${item.region ? `<span class="text-gray-300 font-normal">|</span> ${item.region}` : ''}
+                        </div>
+                        
+                        <p class="mission-desc text-[13px] text-gray-600 leading-relaxed italic pr-4">${formattedDesc}</p>
                     </div>
                 `;
-                card.onclick = () => selectRef(item);
-                listContainer.appendChild(card);
-
-                const markerIcon = L.divIcon({
-                    className: 'custom-div-icon',
-                    html: `<div class="marker-dot" style="background-color: var(--dix-light-green); width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.2);"></div>`,
-                    iconSize: [12, 12], iconAnchor: [6, 6]
-                });
-                L.marker([item.lat, item.lng], { icon: markerIcon }).addTo(markersLayer).on('click', () => selectRef(item));
-                bounds.push([item.lat, item.lng]);
+                container.appendChild(div);
             });
-
-            if (bounds.length > 0) {
-                map.fitBounds(bounds, { padding: [40, 40], maxZoom: 11, duration: 1.5 });
-            }
+            if (window.lucide) lucide.createIcons();
+            updateCounter();
         }
 
-        function selectRef(item) {
-            document.querySelectorAll('#resultsList > div').forEach(el => el.classList.remove('active-card'));
-            const card = document.getElementById(`card-${item.id}`);
-            if(card) {
-                card.classList.add('active-card');
-                card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-            map.flyTo([item.lat, item.lng], 11, { duration: 1.2 });
-            
-            document.getElementById('detTitle').textContent = item.title ? item.title.toUpperCase() : '';
-            document.getElementById('detClient').textContent = item.client;
-            document.getElementById('detYear').textContent = item.year;
-            document.getElementById('detTheme').textContent = item.category.toUpperCase();
-            document.getElementById('detDesc').textContent = item.desc;
-            document.getElementById('detLoc').textContent = `${item.city || ''} (${item.region || ''})`;
-            
-            const logoCont = document.getElementById('detLogoContainer');
-            const logoImg = document.getElementById('detLogo');
-            if (item.logo) {
-                logoImg.src = item.logo;
-                logoCont.classList.remove('hidden');
+        function toggleSelection(id) {
+            if (selectedIds.has(id)) {
+                selectedIds.delete(id);
             } else {
-                logoCont.classList.add('hidden');
+                selectedIds.add(id);
             }
-            
-            const panel = document.getElementById('detailPanel');
-            if (window.innerWidth <= 768) {
-                panel.style.transform = "translateY(0)";
-            } else {
-                panel.style.transform = "translateX(0)";
+            const el = document.getElementById(id);
+            if (el) {
+                el.classList.toggle('selected');
+                const checkbox = el.querySelector('.checkbox-custom');
+                if (selectedIds.has(id)) {
+                    checkbox.innerHTML = '<i data-lucide="check" class="w-3 h-3"></i>';
+                } else {
+                    checkbox.innerHTML = '';
+                }
+                if (window.lucide) lucide.createIcons();
             }
+            updateCounter();
         }
 
-        function closeDetails() {
-            const panel = document.getElementById('detailPanel');
-            if (window.innerWidth <= 768) {
-                panel.style.transform = "translateY(150%)";
-            } else {
-                panel.style.transform = "translateX(120%)";
-            }
-            document.querySelectorAll('#resultsList > div').forEach(el => el.classList.remove('active-card'));
-        }
-
-        document.getElementById('searchInput').oninput = filterData;
-        document.getElementById('themeFilter').onchange = filterData;
-
-        function filterData() {
-            const search = document.getElementById('searchInput').value.toLowerCase();
+        function toggleAll(force) {
             const theme = document.getElementById('themeFilter').value;
-            const filtered = allData.filter(d => {
-                const matchesSearch = (d.title || "").toLowerCase().includes(search) || (d.client || "").toLowerCase().includes(search);
-                const matchesTheme = theme === "" || d.category === theme;
-                return matchesSearch && matchesTheme;
+            // On cible uniquement les cartes VISIBLES (non masquées par le filtre écran)
+            const visibleCards = Array.from(document.querySelectorAll('.reference-card:not(.hidden-screen)'));
+            
+            visibleCards.forEach(card => {
+                const id = card.id;
+                if (force) {
+                    if (!selectedIds.has(id)) toggleSelection(id);
+                } else {
+                    if (selectedIds.has(id)) toggleSelection(id);
+                }
             });
-            render(filtered);
-            closeDetails();
+        }
+
+        function updateCounter() {
+            const count = selectedIds.size;
+            document.getElementById('selectionCounter').textContent = `${count} RÉFÉRENCE${count > 1 ? 'S' : ''} SÉLECTIONNÉE${count > 1 ? 'S' : ''}`;
         }
     </script>
 </body>
