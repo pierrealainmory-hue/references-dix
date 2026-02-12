@@ -18,28 +18,31 @@
         body { font-family: 'Georgia', serif; color: var(--dix-dark-green); background-color: #f0f2f5; }
         h1, h2, h3, .font-oswald { font-family: 'Oswald', sans-serif; text-transform: uppercase; }
 
-        /* Styles Impression - Optimisés pour la compacité */
+        /* Styles spécifiques pour l'écran uniquement */
+        @media screen {
+            .hidden-screen { display: none !important; }
+        }
+
+        /* Styles Impression */
         @media print {
-            /* Marges réduites pour maximiser l'espace */
             @page { margin: 1cm; size: A4; }
             
             .no-print { display: none !important; }
             body { background-color: white; padding: 0; font-size: 10pt; margin-bottom: 2cm; } 
             #exportArea { box-shadow: none; border: none; width: 100%; max-width: 100%; margin: 0; padding: 0; }
             
-            /* PIED DE PAGE FIXE SUR CHAQUE PAGE */
             #printFooter {
                 position: fixed;
                 bottom: 0;
                 left: 0;
                 right: 0;
-                height: 1cm; /* Hauteur ajustée */
+                height: 1cm;
                 display: flex !important;
-                justify-content: center; /* Centré */
+                justify-content: center;
                 align-items: center;
                 border-top: 2px solid var(--dix-dark-green);
                 background: white;
-                font-size: 7pt; /* Police légèrement réduite pour tenir sur une ligne */
+                font-size: 7pt;
                 padding-top: 5px;
                 color: #666;
                 z-index: 1000;
@@ -47,52 +50,48 @@
                 width: 100%;
             }
 
-            /* Conteneur principal de la carte en mode ligne forcé */
             .reference-card { 
                 display: flex !important; 
-                flex-direction: row !important; /* Force l'horizontal */
-                align-items: stretch !important; /* Etire la hauteur pour la ligne verticale */
+                flex-direction: row !important;
+                align-items: stretch !important;
                 break-inside: avoid; 
                 margin-bottom: 0.5cm !important;
                 padding-bottom: 0.5cm !important;
                 padding-top: 0.5cm !important;
-                border-bottom: 1px solid #000 !important; /* Séparateur horizontal noir */
+                border-bottom: 1px solid #000 !important;
                 background-color: transparent !important;
             }
             
+            /* REGLE CRUCIALE : On cache tout ce qui n'est pas sélectionné */
             .reference-card:not(.selected) { display: none !important; }
+            /* On force l'affichage de ce qui est sélectionné (même si masqué à l'écran par le filtre) */
+            .reference-card.selected { display: flex !important; }
 
-            /* Colonne Gauche (Méta) */
             .ref-left-col {
                 width: 22% !important; 
                 padding: 0 15px 0 0 !important;
                 background-color: transparent !important;
-                border-right: 1px solid #000 !important; /* Séparateur vertical noir */
+                border-right: 1px solid #000 !important;
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: center !important;
                 text-align: right !important; 
             }
 
-            /* Colonne Droite (Contenu) */
             .ref-right-col {
                 width: 78% !important;
                 padding: 0 0 0 15px !important;
             }
 
-            /* Ajustements tailles */
             .logo-img { max-height: 40px !important; max-width: 100% !important; object-fit: contain; margin-left: auto !important; margin-right: 0 !important; margin-bottom: 5px !important; }
             .print-hidden-bg { background-color: transparent !important; border: none !important; }
             .mission-desc { font-size: 9pt !important; line-height: 1.3 !important; text-align: justify; }
             h3 { font-size: 11pt !important; margin-bottom: 2px !important; }
             .client-name { font-size: 8pt !important; }
             .year-tag { font-size: 8pt !important; padding: 0 !important; border: none !important; color: var(--dix-light-green) !important; text-align: right !important; }
-            
-            /* Masquer les éléments purement décoratifs qui prennent de la place */
             .decorative-pin { display: none !important; }
             .location-text { font-size: 8pt !important; margin-bottom: 5px !important; }
             
-            /* Forcer les couleurs pour l'impression */
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
         }
@@ -163,7 +162,6 @@
         <div class="border-b-4 border-[var(--dix-dark-green)] pb-4 mb-6 flex justify-between items-end">
             <!-- Emplacement Logo D.I.X. -->
             <div class="w-1/3">
-                <!-- IMPORTANT : Placez une image nommée 'logo.png' au même endroit que ce fichier HTML -->
                 <img src="logo.png" onerror="this.src='https://placehold.co/200x80/white/405F59?text=LOGO+MANQUANT'" alt="Logo D.I.X." class="h-16 object-contain">
             </div>
             
@@ -227,8 +225,11 @@
                         city: row[COLS.VILLE] || ""
                     })).filter(d => d.title && d.title !== "Sans titre");
                     
+                    // Tri par année décroissante UNE SEULE FOIS ici
+                    allData.sort((a, b) => b.year - a.year);
+
                     renderFilters();
-                    renderRefs(allData);
+                    renderRefs(); // On rend TOUT une fois
                 }
             });
         }
@@ -253,9 +254,18 @@
 
         function filterByTheme() {
             const theme = document.getElementById('themeFilter').value;
-            const filtered = theme ? allData.filter(d => d.category === theme) : allData;
-            document.getElementById('docSubtitle').textContent = theme ? theme.toUpperCase() : 'SÉLECTION PERSONNALISÉE';
-            renderRefs(filtered);
+            // Ne pas changer le titre pour éviter des confusions lors des mix de sélections
+            // On masque juste visuellement les cartes qui ne correspondent pas
+            
+            const cards = document.querySelectorAll('.reference-card');
+            cards.forEach(card => {
+                const cardCategory = card.dataset.category;
+                if (theme === "" || cardCategory === theme) {
+                    card.classList.remove('hidden-screen');
+                } else {
+                    card.classList.add('hidden-screen');
+                }
+            });
         }
 
         function formatDescription(text) {
@@ -267,15 +277,18 @@
                 .join('<br>');
         }
 
-        function renderRefs(data) {
+        // Modifié pour rendre TOUTES les données une fois
+        function renderRefs() {
             const container = document.getElementById('refsList');
             container.innerHTML = '';
 
-            data.sort((a, b) => b.year - a.year).forEach(item => {
+            allData.forEach(item => {
                 const isSelected = selectedIds.has(item.id);
                 const div = document.createElement('div');
                 div.id = item.id;
-                // Structure Flexbox responsive (colonne sur mobile, ligne sur desktop)
+                // Ajout de l'attribut data-category pour le filtre CSS
+                div.dataset.category = item.category;
+                
                 div.className = `reference-card flex flex-col md:flex-row items-stretch border-transparent ${isSelected ? 'selected' : ''}`;
                 
                 div.onclick = (e) => {
@@ -286,7 +299,6 @@
                 const formattedDesc = formatDescription(item.desc);
 
                 div.innerHTML = `
-                    <!-- COLONNE GAUCHE (ref-left-col) : Logo, Commanditaire, Année -->
                     <div class="ref-left-col w-full md:w-56 flex-shrink-0 p-5 bg-gray-50 flex flex-col justify-center items-center md:items-center text-center relative border-r border-gray-100 print-hidden-bg">
                         <div class="no-print absolute top-3 left-3">
                             <div class="checkbox-custom">
@@ -302,7 +314,6 @@
                         <div class="year-tag text-[10px] font-bold text-[var(--dix-light-green)] font-oswald tracking-[0.2em] bg-white px-2 py-0.5 rounded shadow-sm border border-gray-100 print-hidden-bg">${item.year}</div>
                     </div>
 
-                    <!-- COLONNE DROITE (ref-right-col) : Infos Mission -->
                     <div class="ref-right-col flex-1 p-5 md:p-8 flex flex-col justify-center">
                         <div class="text-[8px] uppercase tracking-[0.4em] text-gray-300 font-bold mb-1 no-print">${item.category}</div>
                         
@@ -344,13 +355,17 @@
 
         function toggleAll(force) {
             const theme = document.getElementById('themeFilter').value;
-            const currentList = theme ? allData.filter(d => d.category === theme) : allData;
+            // On cible uniquement les cartes VISIBLES (non masquées par le filtre écran)
+            const visibleCards = Array.from(document.querySelectorAll('.reference-card:not(.hidden-screen)'));
             
-            currentList.forEach(item => {
-                if (force) selectedIds.add(item.id);
-                else selectedIds.delete(item.id);
+            visibleCards.forEach(card => {
+                const id = card.id;
+                if (force) {
+                    if (!selectedIds.has(id)) toggleSelection(id);
+                } else {
+                    if (selectedIds.has(id)) toggleSelection(id);
+                }
             });
-            renderRefs(currentList);
         }
 
         function updateCounter() {
