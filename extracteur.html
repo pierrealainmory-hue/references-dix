@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D.I.X. - Générateur de Références</title>
+    
+    <!-- Polices Charte D.I.X. -->
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500&family=Georgia&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.0/lucide.min.js"></script>
+
+    <style>
+        :root {
+            --dix-dark-green: #405F59;
+            --dix-light-green: #549e39;
+            --dix-white-grey: #f3f3f3;
+        }
+
+        body { font-family: 'Georgia', serif; color: var(--dix-dark-green); background-color: var(--dix-white-grey); }
+        h1, h2, h3, h4, .font-oswald { font-family: 'Oswald', sans-serif; text-transform: uppercase; font-weight: 400; }
+        
+        .no-print { display: block; }
+        .print-only { display: none; }
+
+        /* Style spécifique pour l'impression PDF */
+        @media print {
+            body { background-color: white; padding: 0; }
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            .page-break { page-break-after: always; }
+            .reference-card { 
+                break-inside: avoid; 
+                border: 1px solid #eee !important; 
+                box-shadow: none !important;
+                margin-bottom: 2rem !important;
+            }
+            @page { margin: 2cm; }
+        }
+
+        .reference-card { transition: all 0.2s ease; border-top: 4px solid var(--dix-dark-green); }
+        .checkbox-custom:checked + label { border-color: var(--dix-light-green); background-color: rgba(84, 158, 57, 0.05); }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- INTERFACE DE SÉLECTION (Invisible à l'impression) -->
+    <div class="no-print sticky top-0 z-50 bg-white border-b shadow-md p-4">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-[var(--dix-dark-green)] rounded-full flex items-center justify-center text-white font-oswald text-lg">D</div>
+                <h1 class="text-xl tracking-wider">Générateur de Références</h1>
+            </div>
+
+            <div class="flex flex-wrap gap-2 items-center">
+                <select id="themeFilter" class="p-2 border rounded-md text-xs uppercase tracking-widest outline-none bg-gray-50 border-gray-200">
+                    <option value="">Toutes les thématiques</option>
+                </select>
+                
+                <button onclick="window.print()" class="bg-[var(--dix-light-green)] text-white px-4 py-2 rounded-md font-oswald flex items-center gap-2 hover:bg-[#46822e] transition-colors">
+                    <i data-lucide="printer" class="w-4 h-4"></i> EXPORTER EN PDF
+                </button>
+            </div>
+        </div>
+        <div class="max-w-6xl mx-auto mt-2 text-[10px] text-gray-400 italic">
+            Sélectionnez les missions ci-dessous pour les inclure dans votre document.
+        </div>
+    </div>
+
+    <!-- HEADER DU DOCUMENT (Visible uniquement au PDF) -->
+    <div class="print-only text-center mb-12 py-8 border-b-2 border-[var(--dix-light-green)]">
+        <h1 class="text-4xl text-[var(--dix-dark-green)] mb-2 tracking-[0.2em]">RÉFÉRENCES PROFESSIONNELLES</h1>
+        <p class="text-lg italic text-gray-500">D.I.X. Autrement — Conseil en systèmes alimentaires de proximité</p>
+    </div>
+
+    <!-- LISTE DES RÉFÉRENCES -->
+    <div class="max-w-6xl mx-auto p-4 md:p-8">
+        <div id="loader" class="flex flex-col items-center justify-center py-20">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--dix-light-green)] mb-4"></div>
+            <p class="font-oswald tracking-widest uppercase text-gray-400">Synchronisation des données...</p>
+        </div>
+
+        <div id="resultsGrid" class="grid grid-cols-1 gap-8">
+            <!-- Les fiches seront injectées ici -->
+        </div>
+    </div>
+
+    <!-- FOOTER DU DOCUMENT (Visible uniquement au PDF) -->
+    <div class="print-only mt-12 pt-4 border-t text-[10px] text-center text-gray-400 font-oswald uppercase tracking-widest">
+        D.I.X. Autrement — www.dix-autrement.fr — Contact : contact@dix-autrement.fr
+    </div>
+
+    <script>
+        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSm_4bPCRFK_gGVkxP-ZeTHzLauhQtqNg_zG2chKNuY8-iyDAuHjc_CQbpBCU4LY9-GRi1579CsUkhr/pub?gid=917397259&single=true&output=csv";
+        
+        let allData = [];
+
+        window.onload = function() {
+            lucide.createIcons();
+            loadData();
+        };
+
+        function cleanUrl(text) {
+            if (!text) return null;
+            const match = text.trim().match(/["'](http[^"']+)["']/i);
+            return match ? match[1] : (text.startsWith('http') ? text.trim() : null);
+        }
+
+        function loadData() {
+            Papa.parse(CSV_URL, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    allData = results.data.map((row, index) => ({
+                        id: index,
+                        year: row["Année"] || "",
+                        region: row["Région"] || "",
+                        logo: cleanUrl(row["LOGOS"]),
+                        client: row["Commanditaire"] || "Client",
+                        category: row["Thématique"] || "AUTRE",
+                        title: row["Intitulé de la mission"] || "Sans titre",
+                        desc: row["Descriptif de la mission"] || "",
+                        city: row["Ville"] || ""
+                    })).filter(item => item.title !== "Sans titre");
+
+                    renderFilters();
+                    render(allData);
+                    document.getElementById('loader').classList.add('hidden');
+                }
+            });
+        }
+
+        function renderFilters() {
+            const categories = [...new Set(allData.map(d => d.category))].filter(Boolean).sort();
+            const select = document.getElementById('themeFilter');
+            categories.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c; opt.textContent = c.toUpperCase();
+                select.appendChild(opt);
+            });
+            select.onchange = (e) => {
+                const filtered = allData.filter(d => !e.target.value || d.category === e.target.value);
+                render(filtered);
+            };
+        }
+
+        function render(data) {
+            const grid = document.getElementById('resultsGrid');
+            grid.innerHTML = '';
+
+            data.forEach(item => {
+                const container = document.createElement('div');
+                container.className = "relative group";
+                
+                // On utilise un système de checkbox pour la sélection "no-print"
+                container.innerHTML = `
+                    <input type="checkbox" checked id="check-${item.id}" class="no-print checkbox-custom absolute top-4 left-[-40px] w-6 h-6 cursor-pointer accent-[var(--dix-light-green)] hidden">
+                    
+                    <div class="reference-card bg-white p-8 shadow-sm rounded-lg border border-gray-100 flex flex-col md:flex-row gap-8 relative overflow-hidden transition-all hover:shadow-md">
+                        <!-- Sélection manuelle pour l'utilisateur -->
+                        <div class="no-print absolute top-0 right-0 p-2">
+                             <label class="flex items-center gap-2 text-[10px] font-bold text-gray-300 cursor-pointer">
+                                <input type="checkbox" checked onchange="toggleCard(this)" class="w-4 h-4"> INCLURE
+                             </label>
+                        </div>
+
+                        <!-- Colonne Gauche : Logo et Meta -->
+                        <div class="w-full md:w-1/4 flex flex-col items-center md:items-start text-center md:text-left border-b md:border-b-0 md:border-r border-gray-100 pb-4 md:pb-0">
+                            <div class="h-24 w-full flex items-center justify-center mb-6">
+                                ${item.logo 
+                                    ? `<img src="${item.logo}" class="max-h-20 max-w-full object-contain" alt="Logo ${item.client}">`
+                                    : `<div class="text-[var(--dix-dark-green)] opacity-20 font-oswald text-4xl">${item.client.charAt(0)}</div>`
+                                }
+                            </div>
+                            <div class="space-y-4 w-full">
+                                <div>
+                                    <p class="text-[9px] uppercase font-bold text-gray-400 tracking-widest mb-1">Période</p>
+                                    <p class="text-sm font-bold text-[var(--dix-dark-green)]">${item.year}</p>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] uppercase font-bold text-gray-400 tracking-widest mb-1">Localisation</p>
+                                    <p class="text-sm">${item.city}<br><span class="text-xs text-gray-500">${item.region}</span></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Colonne Droite : Contenu -->
+                        <div class="flex-1">
+                            <div class="mb-4">
+                                <span class="inline-block px-2 py-0.5 bg-[var(--dix-white-grey)] text-[10px] font-bold text-[var(--dix-light-green)] rounded mb-2 uppercase tracking-widest">${item.category}</span>
+                                <h3 class="text-xl md:text-2xl text-[var(--dix-dark-green)] leading-tight mb-2 font-oswald">${item.title.toUpperCase()}</h3>
+                                <p class="text-md font-bold text-gray-600 mb-4">${item.client.toUpperCase()}</p>
+                            </div>
+                            
+                            <div class="h-0.5 bg-[var(--dix-light-green)] w-12 mb-4"></div>
+                            
+                            <div class="text-gray-700 text-sm leading-relaxed italic whitespace-pre-line">
+                                ${item.desc}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(container);
+            });
+            lucide.createIcons();
+        }
+
+        // Fonction pour cacher/montrer une carte lors de l'impression
+        function toggleCard(checkbox) {
+            const card = checkbox.closest('.group');
+            if (checkbox.checked) {
+                card.classList.remove('no-print');
+                card.style.opacity = "1";
+            } else {
+                card.classList.add('no-print');
+                card.style.opacity = "0.4";
+            }
+        }
+    </script>
+</body>
+</html>
