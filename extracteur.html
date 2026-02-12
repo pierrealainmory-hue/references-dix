@@ -60,6 +60,7 @@
                 padding-top: 0.5cm !important;
                 border-bottom: 1px solid #000 !important;
                 background-color: transparent !important;
+                border-left: none !important; /* Suppression explicite de la bordure gauche */
             }
             
             /* REGLE CRUCIALE : On cache tout ce qui n'est pas sélectionné */
@@ -97,8 +98,18 @@
         }
 
         /* Styles Interface Editeur (Ecran) */
-        .reference-card { cursor: pointer; transition: all 0.2s ease; border-left: 4px solid transparent; border-bottom: 1px solid #eee; }
-        .reference-card.selected { border-left-color: var(--dix-light-green); background-color: white; }
+        .reference-card { 
+            cursor: pointer; 
+            transition: all 0.2s ease; 
+            /* Suppression de la bordure gauche ici */
+            border-bottom: 1px solid #eee; 
+        }
+        
+        .reference-card.selected { 
+            /* Suppression de la couleur de bordure */
+            background-color: white; 
+        }
+        
         .reference-card:not(.selected) { opacity: 0.5; background-color: transparent; }
         .reference-card:hover { opacity: 1; transform: translateX(5px); background-color: white; }
 
