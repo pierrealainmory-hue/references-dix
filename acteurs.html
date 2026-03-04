@@ -79,21 +79,21 @@
         .logo-item:hover {
             border-color: var(--dix-light-green);
             transform: translateY(-3px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
 
         .logo-item img {
             max-height: 75px;
             max-width: 100%;
             object-fit: contain;
-            filter: grayscale(100%);
-            opacity: 0.7;
+            /* Suppression du filtre noir et blanc */
+            filter: none; 
+            opacity: 1;
             transition: all 0.4s ease;
         }
 
         .logo-item:hover img {
-            filter: grayscale(0%);
-            opacity: 1;
+            transform: scale(1.05);
         }
 
         /* Tooltip au survol du logo - Taille agrandie */
