@@ -102,26 +102,53 @@
             transition: background 0.2s;
         }
         .map-control-btn:hover { background: #f4f4f4; }
+
+        /* Ajustements Selects */
+        select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23405F59'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 1rem;
+            padding-right: 2.5rem !important;
+        }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
 
     <!-- HEADER / FILTRES -->
     <header class="border-b bg-white">
-        <div class="flex flex-col md:flex-row items-center w-full px-8 py-5">
-            <div class="w-full md:w-1/2 mb-4 md:mb-0">
+        <div class="flex flex-col md:flex-row items-center w-full px-8 py-5 gap-6">
+            <!-- Titre -->
+            <div class="w-full md:w-1/4">
                 <h1 class="text-3xl md:text-4xl tracking-widest text-[var(--dix-dark-green)] font-oswald">Nos Références</h1>
                 <div class="w-20 h-1.5 mt-1 bg-[var(--dix-light-green)]"></div>
             </div>
             
-            <div class="flex flex-wrap gap-4 w-full md:w-1/2 justify-end">
-                <div class="relative flex-grow max-w-sm">
-                    <input type="text" id="searchInput" placeholder="Rechercher une mission, un client..." 
-                        class="w-full pl-12 pr-4 py-3 border rounded-full text-base outline-none focus:ring-2 focus:ring-[var(--dix-light-green)] border-gray-200 bg-[var(--dix-white-grey)] shadow-inner">
-                    <i data-lucide="search" class="absolute left-4 top-3.5 text-gray-400 w-5 h-5"></i>
+            <!-- Barre d'outils (Filtres) -->
+            <div class="flex-1 flex flex-wrap gap-3 justify-end items-center">
+                <!-- Recherche -->
+                <div class="relative flex-grow max-w-[250px]">
+                    <input type="text" id="searchInput" placeholder="Rechercher..." 
+                        class="w-full pl-10 pr-4 py-2.5 border rounded-full text-sm outline-none focus:ring-2 focus:ring-[var(--dix-light-green)] border-gray-200 bg-[var(--dix-white-grey)] shadow-inner">
+                    <i data-lucide="search" class="absolute left-3.5 top-3 text-gray-400 w-4 h-4"></i>
                 </div>
-                <select id="themeFilter" class="px-5 py-3 border rounded-full text-xs uppercase tracking-widest outline-none bg-white border-gray-200 cursor-pointer hover:border-[var(--dix-light-green)] transition-colors min-w-[240px]">
-                    <option value="">Toutes les thématiques</option>
+                
+                <!-- Filtre Thématique -->
+                <select id="themeFilter" class="px-4 py-2.5 border rounded-full text-[10px] uppercase tracking-widest outline-none bg-white border-gray-200 cursor-pointer hover:border-[var(--dix-light-green)] transition-colors min-w-[160px]">
+                    <option value="">Toutes thématiques</option>
+                </select>
+
+                <!-- Filtre Type Porteur -->
+                <select id="typeFilter" class="px-4 py-2.5 border rounded-full text-[10px] uppercase tracking-widest outline-none bg-white border-gray-200 cursor-pointer hover:border-[var(--dix-light-green)] transition-colors min-w-[140px]">
+                    <option value="">Types porteurs</option>
+                </select>
+
+                <!-- Filtre Année -->
+                <select id="yearFilter" class="px-4 py-2.5 border rounded-full text-[10px] uppercase tracking-widest outline-none bg-white border-gray-200 cursor-pointer hover:border-[var(--dix-light-green)] transition-colors min-w-[110px]">
+                    <option value="">Toutes années</option>
                 </select>
             </div>
         </div>
@@ -159,6 +186,7 @@
     <script>
         const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSm_4bPCRFK_gGVkxP-ZeTHzLauhQtqNg_zG2chKNuY8-iyDAuHjc_CQbpBCU4LY9-GRi1579CsUkhr/pub?gid=917397259&single=true&output=csv";
         
+        // Configuration des index de colonnes basée sur le CSV fourni
         let COLS = { ANNEE: 0, REGION: 1, LOGO: 2, CLIENT: 3, TYPE: 4, CATEGORIE: 5, TITRE: 6, DESC: 7, VILLE: 9, LAT: 10, LNG: 11 };
         let allData = [];
         let map, markersLayer;
@@ -213,15 +241,21 @@
                     const rows = results.data.slice(1);
                     
                     allData = rows.map((row, index) => {
-                        const lat = parseFloat(String(row[COLS.LAT] || "").replace(',', '.'));
-                        const lng = parseFloat(String(row[COLS.LNG] || "").replace(',', '.'));
+                        const lat = parseFloat(String(row[COLS.LAT] || "").replace(',', '.').replace(' ', ''));
+                        const lng = parseFloat(String(row[COLS.LNG] || "").replace(',', '.').replace(' ', ''));
                         if (isNaN(lat) || isNaN(lng)) return null;
+                        
+                        // Nettoyage de l'année (on garde la première si multi-lignes dans une cellule)
+                        let yearRaw = row[COLS.ANNEE] || "";
+                        let yearDisplay = yearRaw.split('\n')[0].trim();
+
                         return {
                             id: index,
-                            year: row[COLS.ANNEE] || "",
+                            year: yearDisplay,
                             region: row[COLS.REGION] || "",
                             logo: cleanUrl(row[COLS.LOGO]),
                             client: row[COLS.CLIENT] || "Client",
+                            typePorteur: row[COLS.TYPE] || "Autre",
                             category: row[COLS.CATEGORIE] || "MISSION",
                             title: row[COLS.TITRE] || "Sans titre",
                             desc: row[COLS.DESC] || "",
@@ -240,12 +274,36 @@
         }
 
         function renderFilters() {
+            // Thématiques
             const categories = [...new Set(allData.map(d => d.category))].filter(Boolean).sort();
-            const select = document.getElementById('themeFilter');
+            const themeSelect = document.getElementById('themeFilter');
             categories.forEach(c => {
                 const opt = document.createElement('option');
                 opt.value = c; opt.textContent = c.toUpperCase();
-                select.appendChild(opt);
+                themeSelect.appendChild(opt);
+            });
+
+            // Types Porteurs
+            const types = [...new Set(allData.map(d => d.typePorteur))].filter(Boolean).sort();
+            const typeSelect = document.getElementById('typeFilter');
+            types.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t; opt.textContent = t.toUpperCase();
+                typeSelect.appendChild(opt);
+            });
+
+            // Années
+            let years = [...new Set(allData.map(d => d.year))].filter(Boolean);
+            years.sort((a, b) => {
+                if (a === "En cours") return -1;
+                if (b === "En cours") return 1;
+                return b.localeCompare(a); // Décroissant
+            });
+            const yearSelect = document.getElementById('yearFilter');
+            years.forEach(y => {
+                const opt = document.createElement('option');
+                opt.value = y; opt.textContent = y.toUpperCase();
+                yearSelect.appendChild(opt);
             });
         }
 
@@ -273,7 +331,10 @@
                                 <h4 class="text-xl font-bold text-[var(--dix-dark-green)] font-oswald leading-tight uppercase">${item.client}</h4>
                                 <span class="text-xs font-bold px-3 py-1 bg-gray-100 rounded-full group-hover:bg-[var(--dix-light-green)] group-hover:text-white transition-colors">${item.year}</span>
                             </div>
-                            <p class="text-[11px] uppercase tracking-widest text-[var(--dix-light-green)] font-bold mb-2">${item.category}</p>
+                            <div class="flex gap-2 mb-2">
+                                <span class="text-[10px] uppercase tracking-wider text-[var(--dix-light-green)] font-bold">${item.category}</span>
+                                <span class="text-[10px] uppercase text-gray-400 font-bold">• ${item.typePorteur}</span>
+                            </div>
                             <p class="text-sm leading-relaxed text-gray-600 font-medium">${item.title}</p>
                             
                             <div class="accordion-content">
@@ -344,7 +405,7 @@
                         <div class="map-logo-badge">
                             ${item.logo 
                                 ? `<img src="${item.logo}" style="max-height: 40px; max-width: 100px; width: auto; height: auto; object-fit: contain; display: block;">`
-                                : `<span class="font-oswald text-xs px-2 text-[var(--dix-dark-green)] font-bold">${item.client.substring(0,15)}</span>`
+                                : `<span class="font-oswald text-[10px] px-2 text-[var(--dix-dark-green)] font-bold text-center">${item.client.substring(0,18)}</span>`
                             }
                         </div>
                     `;
@@ -359,17 +420,27 @@
             });
         }
 
+        // Branchement des écouteurs de filtres
         document.getElementById('searchInput').oninput = filterData;
         document.getElementById('themeFilter').onchange = filterData;
+        document.getElementById('typeFilter').onchange = filterData;
+        document.getElementById('yearFilter').onchange = filterData;
 
         function filterData() {
             const search = document.getElementById('searchInput').value.toLowerCase();
             const theme = document.getElementById('themeFilter').value;
+            const typePorteur = document.getElementById('typeFilter').value;
+            const year = document.getElementById('yearFilter').value;
+
             const filtered = allData.filter(d => {
                 const matchesSearch = (d.title + d.client + d.desc).toLowerCase().includes(search);
                 const matchesTheme = theme === "" || d.category === theme;
-                return matchesSearch && matchesTheme;
+                const matchesType = typePorteur === "" || d.typePorteur === typePorteur;
+                const matchesYear = year === "" || d.year === year;
+                
+                return matchesSearch && matchesTheme && matchesType && matchesYear;
             });
+
             render(filtered);
             if (activeMarker) activeMarker = null;
         }
