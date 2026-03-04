@@ -24,6 +24,8 @@
             background-color: white; 
             margin: 0;
             padding: 1rem;
+            /* Empêche le défilement interne pour que le parent gère la hauteur */
+            overflow: hidden; 
         }
         
         .font-oswald { 
@@ -101,11 +103,11 @@
             left: 0;
             right: 0;
             font-family: 'Oswald', sans-serif;
-            font-size: 11px; /* Police agrandie de 9px à 11px */
+            font-size: 11px;
             text-align: center;
             background: var(--dix-light-green);
             color: white;
-            padding: 6px 4px; /* Padding ajusté */
+            padding: 6px 4px;
             opacity: 0;
             transition: all 0.3s ease;
             transform: translateY(100%);
@@ -143,6 +145,17 @@
         const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSm_4bPCRFK_gGVkxP-ZeTHzLauhQtqNg_zG2chKNuY8-iyDAuHjc_CQbpBCU4LY9-GRi1579CsUkhr/pub?gid=917397259&single=true&output=csv";
         
         const COLS = { LOGO: 2, CLIENT: 3, TYPE: 4 };
+
+        // Fonction pour envoyer la hauteur au site parent (Strikingly)
+        function notifyParentHeight() {
+            setTimeout(() => {
+                const height = document.documentElement.scrollHeight || document.body.scrollHeight;
+                window.parent.postMessage({
+                    type: 'dix-mosaique-resize',
+                    height: height
+                }, '*');
+            }, 500); // Petit délai pour s'assurer que les images sont calculées
+        }
 
         function cleanUrl(text) {
             if (!text) return null;
@@ -182,18 +195,16 @@
                     const types = Object.keys(grouped).sort();
                     
                     types.forEach(type => {
-                        // A. Ajouter la carte "Titre" dans la grille
                         const titleCard = document.createElement('div');
                         titleCard.className = "tile category-tile";
                         titleCard.innerHTML = `<span>${type}</span>`;
                         grid.appendChild(titleCard);
 
-                        // B. Ajouter les logos de cette catégorie à la suite
                         grouped[type].forEach(item => {
                             const logoCard = document.createElement('div');
                             logoCard.className = "tile logo-item group";
                             logoCard.innerHTML = `
-                                <img src="${item.logo}" alt="${item.client}" loading="lazy" onerror="this.parentElement.style.display='none'">
+                                <img src="${item.logo}" alt="${item.client}" loading="lazy" onload="notifyParentHeight()" onerror="this.parentElement.style.display='none'">
                                 <div class="client-name uppercase tracking-tighter">${item.client}</div>
                             `;
                             grid.appendChild(logoCard);
@@ -202,9 +213,15 @@
 
                     document.getElementById('loader').classList.add('hidden');
                     grid.classList.remove('hidden');
+                    
+                    // Notifier une première fois la hauteur
+                    notifyParentHeight();
                 }
             });
         };
+
+        // Recalculer si la fenêtre change de taille (ex: passage mobile/desktop)
+        window.onresize = notifyParentHeight;
     </script>
 </body>
 </html>
