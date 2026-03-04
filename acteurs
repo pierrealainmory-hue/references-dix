@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D.I.X. Autrement - Mosaïque Logos</title>
+    
+    <!-- Polices Charte D.I.X. -->
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500&family=Georgia&display=swap" rel="stylesheet">
+    
+    <!-- Bibliothèques externes -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <style>
+        :root {
+            --dix-dark-green: #405F59;
+            --dix-light-green: #549e39;
+            --dix-white-grey: #f3f3f3;
+        }
+        body { 
+            font-family: 'Georgia', serif; 
+            color: var(--dix-dark-green); 
+            background-color: white; 
+            margin: 0;
+            padding: 1rem;
+        }
+        
+        .font-oswald { 
+            font-family: 'Oswald', sans-serif; 
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        
+        /* Grille unique et continue */
+        .logo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 1.5rem;
+            align-items: stretch;
+        }
+
+        /* Style des tuiles (Logos et Titres partagent la même base) */
+        .tile {
+            aspect-ratio: 3/2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* La carte Titre de catégorie */
+        .category-tile {
+            background-color: var(--dix-dark-green);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            font-family: 'Oswald', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 0.95rem;
+            line-height: 1.2;
+            font-weight: 400;
+            cursor: default;
+        }
+
+        /* La carte Logo */
+        .logo-item {
+            background: white;
+            border: 1px solid var(--dix-white-grey);
+            padding: 1rem;
+        }
+
+        .logo-item:hover {
+            border-color: var(--dix-light-green);
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .logo-item img {
+            max-height: 75px;
+            max-width: 100%;
+            object-fit: contain;
+            filter: grayscale(100%);
+            opacity: 0.7;
+            transition: all 0.4s ease;
+        }
+
+        .logo-item:hover img {
+            filter: grayscale(0%);
+            opacity: 1;
+        }
+
+        /* Tooltip au survol du logo - Taille agrandie */
+        .client-name {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            font-family: 'Oswald', sans-serif;
+            font-size: 11px; /* Police agrandie de 9px à 11px */
+            text-align: center;
+            background: var(--dix-light-green);
+            color: white;
+            padding: 6px 4px; /* Padding ajusté */
+            opacity: 0;
+            transition: all 0.3s ease;
+            transform: translateY(100%);
+            z-index: 10;
+        }
+
+        .logo-item:hover .client-name {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Animation de chargement */
+        .loader-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 300px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader" class="loader-container">
+        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--dix-light-green)] mb-4"></div>
+        <p class="font-oswald text-[10px] text-gray-400">Synchronisation des références...</p>
+    </div>
+
+    <!-- Conteneur unique pour une mosaïque sans coupure -->
+    <div id="mosaicGrid" class="logo-grid hidden">
+        <!-- Les cartes (Titres + Logos) seront injectées ici par le script -->
+    </div>
+
+    <script>
+        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSm_4bPCRFK_gGVkxP-ZeTHzLauhQtqNg_zG2chKNuY8-iyDAuHjc_CQbpBCU4LY9-GRi1579CsUkhr/pub?gid=917397259&single=true&output=csv";
+        
+        const COLS = { LOGO: 2, CLIENT: 3, TYPE: 4 };
+
+        function cleanUrl(text) {
+            if (!text) return null;
+            let url = text.trim();
+            const match = url.match(/["'](http[^"']+)["']/i);
+            return match ? match[1] : (url.startsWith('http') ? url : null);
+        }
+
+        window.onload = function() {
+            Papa.parse(CSV_URL, {
+                download: true,
+                header: false,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    if (!results.data || results.data.length < 2) return;
+                    
+                    const rows = results.data.slice(1);
+                    const grid = document.getElementById('mosaicGrid');
+                    
+                    // 1. Filtrer les logos valides
+                    const dataWithLogos = rows.map(row => ({
+                        logo: cleanUrl(row[COLS.LOGO]),
+                        client: row[COLS.CLIENT] || "Client",
+                        type: (row[COLS.TYPE] || "Autres").trim()
+                    })).filter(item => item.logo && item.logo.length > 10);
+
+                    // 2. Grouper par Type de porteur
+                    const grouped = dataWithLogos.reduce((acc, curr) => {
+                        if (!acc[curr.type]) acc[curr.type] = [];
+                        if (!acc[curr.type].find(i => i.client.toLowerCase() === curr.client.toLowerCase())) {
+                            acc[curr.type].push(curr);
+                        }
+                        return acc;
+                    }, {});
+
+                    // 3. Injecter tout dans la même grille
+                    const types = Object.keys(grouped).sort();
+                    
+                    types.forEach(type => {
+                        // A. Ajouter la carte "Titre" dans la grille
+                        const titleCard = document.createElement('div');
+                        titleCard.className = "tile category-tile";
+                        titleCard.innerHTML = `<span>${type}</span>`;
+                        grid.appendChild(titleCard);
+
+                        // B. Ajouter les logos de cette catégorie à la suite
+                        grouped[type].forEach(item => {
+                            const logoCard = document.createElement('div');
+                            logoCard.className = "tile logo-item group";
+                            logoCard.innerHTML = `
+                                <img src="${item.logo}" alt="${item.client}" loading="lazy" onerror="this.parentElement.style.display='none'">
+                                <div class="client-name uppercase tracking-tighter">${item.client}</div>
+                            `;
+                            grid.appendChild(logoCard);
+                        });
+                    });
+
+                    document.getElementById('loader').classList.add('hidden');
+                    grid.classList.remove('hidden');
+                }
+            });
+        };
+    </script>
+</body>
+</html>
