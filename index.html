@@ -57,18 +57,26 @@
 
         .marker-dot { transition: all 0.3s ease; cursor: pointer; }
         
-        /* Badge Logo sur la carte */
+        /* Badge Logo sur la carte - Correction de l'affichage */
         .map-logo-badge {
             background: white;
             border: 2px solid var(--dix-light-green);
             border-radius: 8px;
-            padding: 4px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            padding: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
-            transform: translateY(-20px);
+            min-width: 50px;
+            min-height: 40px;
+            max-width: 120px;
+        }
+
+        .leaflet-tooltip-pane .leaflet-tooltip {
+            background-color: transparent;
+            border: none;
+            box-shadow: none;
+            padding: 0;
         }
 
         header { 
@@ -79,6 +87,21 @@
             flex-shrink: 0;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
+
+        /* Bouton Vue Générale personnalisé */
+        .map-control-btn {
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 6px;
+            cursor: pointer;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .map-control-btn:hover { background: #f4f4f4; }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
@@ -120,6 +143,12 @@
         <!-- ZONE CARTE -->
         <div class="flex-1 relative overflow-hidden">
             <div id="map"></div>
+            <!-- Bouton Vue Générale -->
+            <div class="absolute bottom-24 right-3 z-[1000]">
+                <button onclick="resetView()" class="map-control-btn" title="Vue Générale">
+                    <i data-lucide="maximize" class="w-5 h-5 text-[var(--dix-dark-green)]"></i>
+                </button>
+            </div>
         </div>
     </main>
 
@@ -282,6 +311,18 @@
             refreshIcons();
         }
 
+        function resetView() {
+            const bounds = [];
+            markersLayer.eachLayer(layer => {
+                if (layer instanceof L.Marker) {
+                    bounds.push(layer.getLatLng());
+                }
+            });
+            if (bounds.length > 0) {
+                map.fitBounds(bounds, { padding: [60, 60], duration: 1.2 });
+            }
+        }
+
         function selectRef(item, fromUI = false) {
             document.querySelectorAll('#resultsList > div').forEach(el => el.classList.remove('active-card'));
             
@@ -295,23 +336,23 @@
 
             map.flyTo([item.lat, item.lng], 12, { duration: 1.2 });
             
-            if (activeMarker) activeMarker.closeTooltip();
+            if (activeMarker) activeMarker.unbindTooltip();
             
             markersLayer.eachLayer(layer => {
                 if (layer.itemData && layer.itemData.id === item.id) {
                     const tooltipHtml = `
                         <div class="map-logo-badge">
                             ${item.logo 
-                                ? `<img src="${item.logo}" style="height: 30px; width: auto; object-fit: contain;">`
-                                : `<span class="font-oswald text-xs px-2">${item.client.substring(0,10)}</span>`
+                                ? `<img src="${item.logo}" style="max-height: 40px; max-width: 100px; width: auto; height: auto; object-fit: contain; display: block;">`
+                                : `<span class="font-oswald text-xs px-2 text-[var(--dix-dark-green)] font-bold">${item.client.substring(0,15)}</span>`
                             }
                         </div>
                     `;
                     layer.bindTooltip(tooltipHtml, { 
                         permanent: true, 
                         direction: 'top', 
-                        className: 'bg-transparent border-none shadow-none',
-                        offset: [0, -10]
+                        offset: [0, -15],
+                        opacity: 1
                     }).openTooltip();
                     activeMarker = layer;
                 }
